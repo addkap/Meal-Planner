@@ -10,7 +10,8 @@ export type Tab = (typeof TABS)[number];
 export interface MealRef { weekStart: string; date: string; slot: MealSlot }
 
 export type Route =
-  | { name: 'recipe'; recipeId: string; meal?: MealRef };
+  | { name: 'recipe'; recipeId: string; meal?: MealRef }
+  | { name: 'log'; date: string; slot: MealSlot; editId?: string };
 
 export interface Nav {
   tab: Tab;

@@ -70,10 +70,10 @@ export default function SwapMenu({ days, day, slot, onSurprise, onPickRecipe, on
       )}
 
       {mode === 'custom' && (
-        <form onSubmit={(e) => { e.preventDefault(); if (!name.trim()) return; onCustom({ name: name.trim(), kcal: kcal ? Number(kcal) : undefined, fiber: fiber ? Number(fiber) : undefined }); }}>
+        <form noValidate onSubmit={(e) => { e.preventDefault(); if (!name.trim()) return; onCustom({ name: name.trim(), kcal: kcal ? Number(kcal) : undefined, fiber: fiber ? Number(fiber) : undefined }); }}>
           <label className="field"><span>What are you having?</span><input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Dinner out, leftover soup" autoFocus /></label>
-          <label className="field"><span>About how many calories? (optional)</span><input type="number" inputMode="numeric" value={kcal} onChange={(e) => setKcal(e.target.value)} /></label>
-          <label className="field"><span>Fiber in grams (optional)</span><input type="number" inputMode="numeric" value={fiber} onChange={(e) => setFiber(e.target.value)} /></label>
+          <label className="field"><span>About how many calories? (optional)</span><input type="number" step="any" inputMode="numeric" value={kcal} onChange={(e) => setKcal(e.target.value)} /></label>
+          <label className="field"><span>Fiber in grams (optional)</span><input type="number" step="any" inputMode="numeric" value={fiber} onChange={(e) => setFiber(e.target.value)} /></label>
           <p className="muted small">The rest of the day is planned around it. Nutrients you do not enter show as "not listed".</p>
           <button className="btn primary" type="submit" disabled={!name.trim()}>Save</button>
           <button className="btn" type="button" onClick={() => setMode('menu')}>‹ Back</button>

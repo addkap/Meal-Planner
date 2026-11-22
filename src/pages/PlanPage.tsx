@@ -108,11 +108,11 @@ function PlanSetup({ weekStart, existing, onDone, onCancel }: { weekStart: strin
         <h2>Targets for the week</h2>
         <label className="field">
           <span>Calories per day</span>
-          <input type="number" inputMode="numeric" value={weekKcal} onChange={(e) => setWeekTargets(e.target.value, weekFiber)} />
+          <input type="number" step="any" inputMode="numeric" value={weekKcal} onChange={(e) => setWeekTargets(e.target.value, weekFiber)} />
         </label>
         <label className="field">
           <span>Fiber per day (grams)</span>
-          <input type="number" inputMode="numeric" value={weekFiber} onChange={(e) => setWeekTargets(weekKcal, e.target.value)} />
+          <input type="number" step="any" inputMode="numeric" value={weekFiber} onChange={(e) => setWeekTargets(weekKcal, e.target.value)} />
         </label>
         <p className="muted small">Filled in from Settings. You can change them for any single day below.</p>
       </div>
@@ -130,8 +130,8 @@ function PlanSetup({ weekStart, existing, onDone, onCancel }: { weekStart: strin
           </div>
           {openTargets === d.date ? (
             <div className="targets-edit">
-              <label className="field"><span>Calories</span><input type="number" inputMode="numeric" value={d.kcalTarget} onChange={(e) => setDay(i, { kcalTarget: Number(e.target.value), ownTargets: true })} /></label>
-              <label className="field"><span>Fiber (g)</span><input type="number" inputMode="numeric" value={d.fiberTarget} onChange={(e) => setDay(i, { fiberTarget: Number(e.target.value), ownTargets: true })} /></label>
+              <label className="field"><span>Calories</span><input type="number" step="any" inputMode="numeric" value={d.kcalTarget} onChange={(e) => setDay(i, { kcalTarget: Number(e.target.value), ownTargets: true })} /></label>
+              <label className="field"><span>Fiber (g)</span><input type="number" step="any" inputMode="numeric" value={d.fiberTarget} onChange={(e) => setDay(i, { fiberTarget: Number(e.target.value), ownTargets: true })} /></label>
               <div className="btns">
                 <button className="btn" onClick={() => setOpenTargets(null)}>Done</button>
                 {d.ownTargets && <button className="btn" onClick={() => { setDay(i, { kcalTarget: kcalNum, fiberTarget: fiberNum, ownTargets: false }); setOpenTargets(null); }}>Use the week's targets</button>}

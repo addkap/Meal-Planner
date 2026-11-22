@@ -236,7 +236,7 @@ function StoresEditor({ stores }: { stores: Store[] }) {
       {stores.map((s) => (
         <div key={s.id} className="store-edit">
           {editing === s.id ? (
-            <form className="row-between" onSubmit={(e) => { e.preventDefault(); if (editName.trim()) void renameStore(s.id, editName); setEditing(null); }}>
+            <form noValidate className="row-between" onSubmit={(e) => { e.preventDefault(); if (editName.trim()) void renameStore(s.id, editName); setEditing(null); }}>
               <input className="search" value={editName} onChange={(e) => setEditName(e.target.value)} aria-label="Store name" autoFocus />
               <button className="chip" type="submit">Save</button>
             </form>
@@ -259,7 +259,7 @@ function StoresEditor({ stores }: { stores: Store[] }) {
           )}
         </div>
       ))}
-      <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) { void addStore(name); setName(''); } }}>
+      <form noValidate onSubmit={(e) => { e.preventDefault(); if (name.trim()) { void addStore(name); setName(''); } }}>
         <label className="field"><span>Add a store</span><input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Trader Joe's" /></label>
         <button className="btn primary" type="submit" disabled={!name.trim()}>Add store</button>
       </form>

@@ -6,6 +6,8 @@ import RecipePage from './pages/RecipePage';
 import RecipesPage from './pages/RecipesPage';
 import ComingSoon from './pages/ComingSoon';
 import GroceriesPage from './pages/GroceriesPage';
+import TodayPage from './pages/TodayPage';
+import LogFoodPage from './pages/LogFoodPage';
 
 /** True when the phone has internet. Everything works either way. */
 function useOnline(): boolean {
@@ -44,11 +46,13 @@ export default function App() {
         <AppDataProvider>
           {top?.name === 'recipe' ? (
             <RecipePage key={top.recipeId + (top.meal?.date ?? '') + (top.meal?.slot ?? '')} recipeId={top.recipeId} meal={top.meal} />
+          ) : top?.name === 'log' ? (
+            <LogFoodPage key={top.date + top.slot + (top.editId ?? '')} date={top.date} slot={top.slot} editId={top.editId} />
           ) : (
             <>
               {tab === 'Plan' && <PlanPage />}
               {tab === 'Groceries' && <GroceriesPage />}
-              {tab === 'Today' && <ComingSoon title="Today" phase={5} text="Check off what you ate, log other foods, scan barcodes, and see the day's nutrition." />}
+              {tab === 'Today' && <TodayPage />}
               {tab === 'Recipes' && <RecipesPage />}
               {tab === 'More' && <ComingSoon title="More" phase={7} text="Weight tracker and Settings." />}
             </>

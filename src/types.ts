@@ -175,6 +175,8 @@ export interface LogEntry extends Rec {
   qty: number;
   unit?: string;
   grams?: number; // resolved grams for foods (kept so later database changes do not shift history)
+  /** A planned meal she typed in herself ("Dinner out"), copied when she checks it off. */
+  custom?: CustomMeal;
   label: string;
 }
 

@@ -2,7 +2,7 @@
 import { db } from './db';
 import { DEFAULT_SETTINGS } from './lib/defaults';
 import { newId } from './lib/ids';
-import type { Feedback, GroceryMark, RecipePref, Settings, Store, WeekPlan } from './types';
+import type { CustomFood, Feedback, GroceryMark, LogEntry, MealSlot, PlannedMeal, RecipePref, Settings, Store, WeekPlan } from './types';
 
 const now = () => Date.now();
 
@@ -68,4 +68,67 @@ export async function setMark(weekStart: string, itemKey: string, patch: Partial
   const next: GroceryMark = { ...cur, ...patch, updatedAt: now() };
   delete next.deletedAt;
   await db.groceryMarks.put(next);
+}
+
+// ---------------------------------------------------------------- daily log
+
+/** The one log entry for "I ate this" on a planned meal (one per day and meal). */
+export const plannedEntryId = (date: string, slot: MealSlot) => `${date}|${slot}|planned`;
+
+/** Check off (qty = servings eaten) or un-check (null) a planned meal. */
+export async function setPlannedEaten(date: string, meal: PlannedMeal, label: string, qty: number | null): Promise<void> {
+  const id = plannedEntryId(date, meal.slot);
+  const cur = await db.logs.get(id);
+  if (qty === null) {
+    if (cur) await db.logs.put({ ...cur, deletedAt: now(), updatedAt: now() });
+    return;
+  }
+  const entry: LogEntry = {
+    id,
+    updatedAt: now(),
+    date,
+    slot: meal.slot,
+    kind: meal.batchId ? 'batch' : 'planned',
+    recipeId: meal.recipeId,
+    batchId: meal.batchId,
+    custom: meal.custom,
+    qty,
+    label,
+  };
+  await db.logs.put(entry);
+}
+
+export async function addLog(e: Omit<LogEntry, 'id' | 'updatedAt'>): Promise<void> {
+  await db.logs.put({ ...e, id: newId(), updatedAt: now() });
+}
+
+export async function updateLog(id: string, patch: Partial<LogEntry>): Promise<void> {
+  const cur = await db.logs.get(id);
+  if (cur) await db.logs.put({ ...cur, ...patch, id, updatedAt: now() });
+}
+
+export async function removeLog(id: string): Promise<void> {
+  const cur = await db.logs.get(id);
+  if (cur) await db.logs.put({ ...cur, deletedAt: now(), updatedAt: now() });
+}
+
+/** Save a food she typed in or scanned (new or corrected). */
+export async function saveCustomFood(f: CustomFood): Promise<void> {
+  const next = { ...f, updatedAt: now() };
+  delete next.deletedAt;
+  await db.customFoods.put(next);
+}
+
+export async function findFoodByBarcode(barcode: string): Promise<CustomFood | undefined> {
+  return (await db.customFoods.where('barcode').equals(barcode).toArray()).find((f) => !f.deletedAt);
+}
+
+/** Calorie and fiber targets for one day only; null goes back to the usual targets. */
+export async function setDayTargets(date: string, t: { kcal?: number; fiber?: number } | null): Promise<void> {
+  if (t === null) {
+    const cur = await db.dayTargets.get(date);
+    if (cur) await db.dayTargets.put({ ...cur, kcal: undefined, fiber: undefined, deletedAt: now(), updatedAt: now() });
+    return;
+  }
+  await db.dayTargets.put({ id: date, ...t, updatedAt: now() });
 }

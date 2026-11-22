@@ -2,7 +2,7 @@
 
 A weekly Mediterranean / Blue Zone meal planner, grocery list and nutrition tracker, built for one person to use on an iPhone. It is an installable web app (PWA), set up the same way as Lift Log: React + TypeScript + Vite, data saved on the phone first, a background copy in her OneDrive folder, and free hosting on GitHub Pages. There is no server and no account.
 
-> **Status: phase 4 of 8.** The data model, food database, recipe library, planner, Plan screen, recipe pages and grocery lists work. Today and More are placeholders until their phases.
+> **Status: phase 5 of 8.** The data model, food database, recipe library, planner, Plan screen, recipe pages, grocery lists and the Today tab (daily log, nutrition, barcode scanning) work. More is a placeholder until phases 7 and 8.
 
 | Phase | What | Status |
 |---|---|---|
@@ -10,7 +10,7 @@ A weekly Mediterranean / Blue Zone meal planner, grocery list and nutrition trac
 | 2 | Planner (weekly plan, diet rules, calorie and fiber targets) | done |
 | 3 | Meal plan screen and recipe pages | done |
 | 4 | Grocery lists by store | done |
-| 5 | Daily log, nutrition summary, barcode scanning | |
+| 5 | Daily log, nutrition summary, barcode scanning | done |
 | 6 | Batch cooking and her own recipes | |
 | 7 | Weight tracker | |
 | 8 | Settings, OneDrive sync, polish, install steps | |
@@ -178,8 +178,49 @@ These are the choices made so far, and why.
 - Tapping an item shows which meals need it.
 - **Copy … as text** copies the store's remaining items, plus the any-store items, grouped by aisle, ready to paste into a message or note.
 
-### Barcode scanning (phase 5)
-- **Open Food Facts only** (free, no key). USDA's branded-food data needs an API key, which cannot be hidden in a public static site, so it is left out.
+### Today: daily log and nutrition (phase 5, `src/lib/log.ts`)
+**Logging meals**
+- Each planned meal has a big **I ate this** checkbox. Checking it logs the amount the plan gave her (for example 1¼ servings, which is what her calories were planned on). She can change it to **Half**, **1**, the planned amount, **1½**, or **Other** (any number). Un-checking removes it.
+- A planned batch serving is logged as a batch serving. A meal she typed into the plan is logged with the calories she entered.
+- **Log something else** (per meal):
+  - **Search:** her own and scanned foods come first, then the 2,437 USDA foods, then recipes (one serving). Every word must match, and plurals match singulars.
+  - **Amount:** any number with a household unit (medium, slice, cup, tbsp, oz, g, the label's serving...), showing the grams and the full nutrition before she adds it, and which meal it goes under. Plain foods start at a natural size (1 medium banana); packaged foods start at their label serving.
+- Logged items can be edited (tap) or removed.
+
+**The day's totals**
+- Calories and fiber against the day's targets, with progress bars.
+- Protein, carbs and fat in grams and as a share of calories.
+- Each meal's calories and macros.
+- Full nutrition for the day, as amounts and % of her targets.
+- **Targets:** a one-day override she sets on Today, else the plan's targets for that day, else Settings.
+- **Partial data:** if any food eaten that day does not list a nutrient, the day shows a "Partial data" note naming them, and those totals show as "≥" (at least).
+- The arrows go back to past days, which can be viewed and edited. The forward arrow stops at today.
+
+### Barcode scanning (phase 5, `src/lib/openFoodFacts.ts`, `src/components/BarcodeScanner.tsx`)
+**Reading the barcode**
+- **Scan barcode** opens the back camera and reads EAN-13, EAN-8, UPC-A and UPC-E barcodes with the ZXing library (`@zxing/browser`).
+- ZXing is bundled into the app, not loaded from a CDN, because Safari on iPhone has no built-in barcode reader. It loads only when the scanner opens, and the offline cache keeps it on the phone. The camera needs https, which GitHub Pages provides.
+- **Not tested on a real camera yet:** the browser I tested in blocks cameras. The "camera not available" fallback was tested; real scanning needs a quick check on her iPhone (see phase 8 steps).
+
+**Looking it up**
+- **Open Food Facts only** (free, no key). USDA's branded-food data needs an API key, which cannot be hidden in a public static site, so it is left out. Only the barcode or the search words are sent.
+- She sees the product name, its label serving, and every nutrient, then picks the amount (servings, grams, ounces) and the meal.
+- **Missing nutrients are never zero.** Open Food Facts gives per-100-g values in grams, converted to mg and µg. Anything a product does not list is stored as "not listed". The app says how many of the 32 nutrients the product lists, and days that include it are marked partial.
+- **Saved on the phone:** every scanned product is saved, so the next scan of the same barcode needs no internet. **Fix or complete this food's nutrition** opens the label form filled in, and her corrections are saved.
+
+**When it doesn't work**
+- If a barcode is not found, or the phone is offline, she can enter nutrition from the label, search packaged foods by name (Open Food Facts), or search the food list.
+- If the camera is blocked or missing, she can type the barcode number instead.
+- Whatever she chooses is saved with that barcode, so the next scan finds it.
+
+**Typing in a label**
+- Name, brand, the serving size as printed, and the serving size in grams (or mL for drinks).
+- Then each nutrient **per serving, as printed**. A blank box means "not listed". Values are stored per 100 g like every other food.
+
+Scanned and typed-in foods can also be used as ingredients in her own recipes (phase 6).
+
+### Forms
+- **Never blocked silently:** number boxes accept decimals (1.4 mg of iron), and no form is held back by the browser's built-in checks without saying why. The app shows its own message instead.
 
 ---
 
