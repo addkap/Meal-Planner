@@ -357,7 +357,7 @@ function fillDay(
   });
 
   const warnings: string[] = [];
-  if (!best) warnings.push('No recipes fit all the rules for this day. Try a different effort level, or unlock a meal.');
+  if (!best) warnings.push('No recipes fit all the rules for this day. Try a different effort level, or stop keeping one of the kept meals.');
   else {
     const pct = Math.round(((best.kcal - d.kcalTarget) / d.kcalTarget) * 100);
     if (Math.abs(best.kcal - d.kcalTarget) / d.kcalTarget > KCAL_TOLERANCE) {
@@ -450,7 +450,7 @@ export function checkWeek(days: DayPlan[], input: Pick<PlanInput, 'pool' | 'rule
       const limit = activeLimit(pool, d, fixedActive, d.meals.filter((m) => !isFixed(m)).map((m) => m.slot));
       v.push({
         rule: 'active-time',
-        message: `${d.date}: about ${active + batchCook} minutes of hands-on cooking, more than an ${d.effort === 'easy' ? 'Easy' : d.effort === 'medium' ? 'Medium' : 'Time-consuming'} day's ${ACTIVE_CAP[d.effort]} because of the locked meal or batch cooking.`,
+        message: `${d.date}: about ${active + batchCook} minutes of hands-on cooking, more than an ${d.effort === 'easy' ? 'Easy' : d.effort === 'medium' ? 'Medium' : 'Time-consuming'} day's ${ACTIVE_CAP[d.effort]} because of meals you are keeping or batch cooking.`,
         date: d.date,
         fixed: active + batchCook <= limit && limit > ACTIVE_CAP[d.effort],
       });

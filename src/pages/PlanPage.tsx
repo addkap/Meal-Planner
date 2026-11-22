@@ -146,7 +146,7 @@ function PlanSetup({ weekStart, existing, onDone, onCancel }: { weekStart: strin
       ))}
 
       <button className="btn primary big" disabled={!valid || busy} onClick={generate}>{busy ? 'Planning…' : existing ? 'Make a new plan' : 'Make my plan'}</button>
-      {existing && existing.days.some((d) => d.meals.some(isFixed)) && <p className="muted small center">Meals you locked and batch servings stay in place.</p>}
+      {existing && existing.days.some((d) => d.meals.some(isFixed)) && <p className="muted small center">Meals you chose to keep and batch servings stay in place.</p>}
       {onCancel && <button className="btn" onClick={onCancel}>Cancel</button>}
       {!valid && <p className="error">Calories should be between 1000 and 4000, and fiber between 10 and 80 grams.</p>}
     </>
@@ -172,7 +172,7 @@ function WeekView({ plan, onEditSetup }: { plan: WeekPlan; onEditSetup: () => vo
       {!plan.finalized && (
         <div className="card review-banner">
           <h2>Review your plan</h2>
-          <p>Look over the meals and the nutrition below. Swap anything you do not fancy, lock meals you like, then tap <b>Use this plan</b>.</p>
+          <p>Look over the meals and the nutrition below. Swap anything you do not fancy, tap <b>Keep</b> on meals you want to hold on to, then tap <b>Use this plan</b>.</p>
           <button className="btn primary big" onClick={() => void savePlan({ ...plan, finalized: true })}>Use this plan</button>
         </div>
       )}
@@ -207,7 +207,7 @@ function WeekView({ plan, onEditSetup }: { plan: WeekPlan; onEditSetup: () => vo
       <div className="card">
         <h2>Change the whole week</h2>
         <button className="btn" onClick={() => { const r = regenerateWeek(plan.days, ctx, newSeed()); void save(r.days, r.warnings); }}>New meals for the whole week</button>
-        <p className="muted small">Locked meals stay.</p>
+        <p className="muted small">Meals marked Kept stay.</p>
         <button className="btn" onClick={onEditSetup}>Change effort, snacks, people or targets</button>
       </div>
     </>
@@ -245,7 +245,7 @@ function DayCard({ day, days, weekStart, onToggleLock, onSurprise, onPickRecipe,
     );
   const actions = (m: PlannedMeal) => (
     <div className="meal-actions">
-      <button className={m.locked ? 'chip on' : 'chip'} aria-pressed={!!m.locked} onClick={() => onToggleLock(m.slot, !m.locked)}>{m.locked ? 'Locked' : 'Lock'}</button>
+      <button className={m.locked ? 'chip on' : 'chip'} aria-pressed={!!m.locked} aria-label={m.locked ? 'Kept. Tap to stop keeping this meal' : 'Keep this meal when making new plans'} onClick={() => onToggleLock(m.slot, !m.locked)}>{m.locked ? '✓ Kept' : 'Keep'}</button>
       <button className={swapping === m.slot ? 'chip on' : 'chip'} aria-expanded={swapping === m.slot} onClick={() => setSwapping(swapping === m.slot ? null : m.slot)}>Swap ▾</button>
     </div>
   );

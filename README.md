@@ -72,7 +72,7 @@ These are the choices made so far, and why.
 
 ### Planner (`src/lib/planner.ts`, `src/lib/pool.ts`)
 **How a week is built**
-1. Meals she locked and batch servings go in first and never change.
+1. Meals she marked **Keep** and batch servings go in first and never change.
 2. The week's protein quotas are drawn within her rules, minus whatever the fixed meals already use. The default rules are fish or seafood 2 to 3 times, poultry 1 to 2, and red meat at most once. Each quota goes to a specific dinner, or a lunch if no dinner fits. Every other meal is plant-based: beans, lentils, eggs, dairy, nuts. This makes the weekly counts exact rather than lucky.
 3. Each day is filled by drawing recipes at random, in proportion to how much she likes them, and keeping the first combination that passes every rule and hits the targets. Her serving size is then tuned between 0.75x and 1.5x, in quarter steps, so the day lands within 5% of its calorie target and meets its fiber target.
 4. The whole week is checked against every rule. If anything is off, it starts again from a different random point (up to 25 times) and keeps the best result.
@@ -94,7 +94,7 @@ These are the choices made so far, and why.
 - Breakfast, lunch and snacks are Easy or Medium, favoring Easy.
 - Each day also has a cap on total hands-on cooking time: Easy 45 minutes, Medium 75, Time-consuming 120.
 - Cooking a batch counts toward the cap on the day she cooks it. Eating batch servings later takes no cooking time.
-- If her locked meals and batch cooking alone go over the cap, the other meals get the quickest recipes and the day shows a warning.
+- If her kept meals and batch cooking alone go over the cap, the other meals get the quickest recipes and the day shows a warning.
 
 **Her preferences**
 - "Use more" makes a recipe twice as likely, "Use less" half as likely, and "Don't use again" removes it.
@@ -105,16 +105,16 @@ These are the choices made so far, and why.
 **Changing a plan**
 - **Swap** gives one meal a different recipe and tunes its serving size. The rest of the week stays as it is.
 - **Regenerate a day** changes only that day.
-- **Regenerate the week** keeps locked meals and batch servings and picks mostly new recipes.
-- **Re-balancing around a batch** keeps locked meals and batch servings. Where the rules still allow, it keeps the recipes already planned, so the week changes as little as possible.
+- **Regenerate the week** keeps kept meals and batch servings and picks mostly new recipes.
+- **Re-balancing around a batch** keeps kept meals and batch servings. Where the rules still allow, it keeps the recipes already planned, so the week changes as little as possible.
 
 **Warnings**
 - If a day cannot reach its calorie or fiber target, the day says so, with the numbers.
-- If her batches or locked meals themselves break a rule (for example a batch that fills 4 fish meals), the plan shows that too, and the planner works around it.
+- If her batches or kept meals themselves break a rule (for example a batch that fills 4 fish meals), the plan shows that too, and the planner works around it.
 
 **Tests (`src/lib/planner.test.ts`)**
 - 100 random weeks without batches, with random effort, snack, people and calorie and fiber targets (1,400 to 2,000 kcal), plus some per-day overrides. Every rule holds in all of them, and fewer than 5% of days miss a target. When a day does miss, it says so.
-- 100 random weeks with 1 or 2 batches and 2 locked meals. Locked meals and batch servings never move, and a batch's protein counts toward the weekly rules. The only rule problems allowed are ones the batch or locked meals cause themselves, and every one of those is shown as a warning.
+- 100 random weeks with 1 or 2 batches and 2 kept meals. Kept meals and batch servings never move, and a batch's protein counts toward the weekly rules. The only rule problems allowed are ones the batch or locked meals cause themselves, and every one of those is shown as a warning.
 - Swap, regenerate day and week, the feedback weights ("Use more" picked more than 1.3x as often, "Use less" under 0.8x, "Don't use again" never), and the nutrition review.
 
 ### Screens (phase 3)
@@ -122,14 +122,14 @@ These are the choices made so far, and why.
 - **Plan tab:** arrows move between weeks.
   - **Setting up a week:** for each day she picks Easy, Medium or Time-consuming, turns the snack on or off, and sets the number of people. The week's calorie and fiber targets are filled in from Settings, and either can be changed for a single day.
   - **Review:** **Make my plan** shows the week together with a nutrition review: each day's calories and fiber against target, a weekly average of every nutrient, and any nutrients that are consistently low or high. She taps **Use this plan** to finalize it.
-  - **Changing it:** she can lock or swap a meal, get new meals for a day or for the whole week, or change the setup. Locked meals stay.
+  - **Changing it:** she can tap **Keep** on a meal or swap it, get new meals for a day or for the whole week, or change the setup. Kept meals stay.
   - **Swap** opens a menu under the meal:
     - **Pick one for me:** a random fit.
     - **Up to six suggestions** that keep every plan rule. Those near the day's calorie target and her favorites come first.
     - **Show all recipes** for that meal. A recipe that would break a rule says which one, and she can still choose it.
     - **Type in my own:** a name ("Dinner out"), with calories and fiber if she knows them. Nutrients she does not enter show as "not listed".
-  - Anything she picks herself is locked automatically. The other meals that day then re-tune their serving sizes to get back near the calorie target.
-  - **Lock means "keep this meal"** while planning: new plans and re-balancing work around it. It is not "I ate this". That is the Today tab's checkbox (phase 5).
+  - Anything she picks herself is kept automatically. The other meals that day then re-tune their serving sizes to get back near the calorie target.
+  - **Keep** (a button on each meal; shows "✓ Kept") is for planning: new plans and re-balancing work around kept meals. It is not "I ate this". That is the Today tab's checkbox (phase 5). It was first called "Lock" and renamed so it is not mistaken for "done". In the code and data the field is still called `locked`.
 - **Meal cards** show the meal, the recipe name, an effort badge, total time, calories for her portion, and her serving size when it is not 1.
 - **Recipe page:**
   - Ingredients scale with a people stepper. Opened from the plan, the stepper changes that meal's number of people, which the grocery list will use.
