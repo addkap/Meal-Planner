@@ -45,6 +45,10 @@ These are the choices made so far, and why.
 - **Its own Microsoft app registration**, like Erika's copy. The client ID goes in `src/config.ts` in phase 8. Until then sync shows as "not set up".
 - **Repository:** `addkap/Meal-Planner`, public. Work is on the `meal-planner-build` branch until it has been reviewed.
 
+### Look
+- **Colors:** navy `#1B365D`, blue `#005A9C`, sky `#60C1E5` and pale sky `#A0E0EF`, on a very light blue-white background (`#F5FAFC`). Navy and blue are used for text and buttons; both are easy to read on the light background. Sky and pale sky are too light for text, so they are only used for stripes, fills and borders.
+- Big readable text (19px body) and big tap targets (at least 48px). Headings use a serif font.
+
 ### Food database
 - **Source:** USDA FoodData Central **SR Legacy** (April 2018), the free download that needs no API key. It is public domain. SR Legacy reports a full nutrient profile and household portions (cup, tbsp, slice, medium...) for nearly every food. **Foundation Foods** was downloaded too but is not used in v1: it covers only a few hundred foods, most of which SR Legacy already has.
 - **Size:** **2,436 foods**, chosen to cover what people commonly eat, so off-plan foods can be logged by searching. That includes fruit, vegetables, dairy, breads, breakfast cereals, snacks, sweets, drinks, meat and fish, and prepared basics such as soups and fast food. Within each USDA food group the most generic foods are kept first (shortest names, like "Bananas, raw"). Baby food, regional specialty foods, and the many near-duplicates of beef cuts and grades are left out. Every food the recipes use is always kept.

@@ -1,26 +1,28 @@
-/* Warm Mediterranean palette: olive, terracotta, cream. Big readable text, big tap targets
-   (nothing smaller than 18px text or 48px buttons). Phase 3 builds out the full design. */
+/* Palette: navy #1B365D, blue #005A9C, sky #60C1E5, pale sky #A0E0EF.
+   Navy and blue are used for text and buttons (both pass WCAG AA on the light background).
+   Sky and pale sky are too light for text, so they are only used for fills, stripes and borders.
+   Big readable text, big tap targets (nothing smaller than 18px text or 48px buttons). Phase 3 builds out the full design. */
 :root {
-  --bg: #fbf6ec;        /* cream */
-  --card: #fffdf8;
-  --text: #2e2a24;
-  --muted: #5e564b;
-  --olive: #5b6b2f;
-  --olive-dark: #3f4a1f;
-  --terracotta: #c4622d;
-  --terracotta-dark: #a14d20;
-  --sand: #e8d8bd;
+  --navy: #1b365d;
+  --blue: #005a9c;
+  --sky: #60c1e5;
+  --pale: #a0e0ef;
+  --bg: #f5fafc;        /* very light tint of pale sky */
+  --card: #ffffff;
+  --text: #14243d;
+  --muted: #4a5b70;
+  --line: #c9e9f2;      /* pale sky, lighter, for card borders */
   --err: #9b1c1c;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); }
 body { font-family: -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif; font-size: 19px; line-height: 1.45; -webkit-text-size-adjust: 100%; }
-h1, h2, .brand { font-family: Georgia, 'Iowan Old Style', 'Palatino', serif; color: var(--olive-dark); }
+h1, h2, .brand { font-family: Georgia, 'Iowan Old Style', 'Palatino', serif; color: var(--navy); }
 h1 { font-size: 30px; margin: 8px 0 8px; }
-h2 { font-size: 24px; margin: 24px 0 8px; color: var(--terracotta-dark); }
+h2 { font-size: 24px; margin: 24px 0 8px; color: var(--blue); }
 .page { max-width: 640px; margin: 0 auto; padding: 16px 16px calc(40px + env(safe-area-inset-bottom)); }
 .muted { color: var(--muted); margin: 4px 0; }
 .error { color: var(--err); font-weight: 700; }
-.banner-top { background: var(--olive); color: #fff; padding: calc(14px + env(safe-area-inset-top)) 16px 12px; border-bottom: 5px solid var(--terracotta); }
+.banner-top { background: var(--navy); color: #fff; padding: calc(14px + env(safe-area-inset-top)) 16px 12px; border-bottom: 5px solid var(--sky); }
 .banner-top .brand { color: #fff; font-size: 24px; font-weight: 700; }
-.card { background: var(--card); border: 2px solid var(--sand); border-radius: 16px; padding: 14px 16px; margin: 10px 0; }
+.card { background: var(--card); border: 2px solid var(--line); border-left: 6px solid var(--pale); border-radius: 16px; padding: 14px 16px; margin: 10px 0; }

@@ -1,9 +1,10 @@
-// Draws the app icon (a cream plate with a terracotta rim and an olive sprig, on olive green) as PNG files.
+// Draws the app icon (a white plate with a sky-blue rim and a blue olive sprig, on navy) as PNG files.
 // No image libraries needed: it writes the pixels itself. Run with: node scripts/make-icons.mjs
 import { deflateSync } from 'node:zlib';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
-const OLIVE = [91, 107, 47], CREAM = [251, 246, 236], TERRA = [196, 98, 45], LEAF = [74, 90, 34], DARK = [63, 74, 31];
+// Palette: navy #1B365D, blue #005A9C, sky #60C1E5, pale sky #A0E0EF
+const NAVY = [27, 54, 93], BLUE = [0, 90, 156], SKY = [96, 193, 229], WHITE = [245, 250, 252];
 
 const table = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
 const crc = (buf) => { let c = 0xffffffff; for (const b of buf) c = table[(c ^ b) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
@@ -24,18 +25,18 @@ function inLeaf(x, y, cx, cy, a, b, angle) {
 
 function colorAt(x, y) {
   const r = Math.hypot(x - 0.5, y - 0.5);
-  if (r > 0.37) return OLIVE; // background (full-bleed so it also works as a maskable icon)
-  if (r > 0.32) return TERRA; // plate rim
+  if (r > 0.37) return NAVY; // background (full-bleed so it also works as a maskable icon)
+  if (r > 0.32) return SKY; // plate rim
   // olive sprig: a stem and five leaves across the plate
   const t = (x - 0.3) / 0.4; // 0..1 along the stem
   const stemY = 0.58 - 0.16 * t;
-  if (t >= 0 && t <= 1 && Math.abs(y - stemY) < 0.012) return DARK;
+  if (t >= 0 && t <= 1 && Math.abs(y - stemY) < 0.012) return NAVY;
   const leaves = [
     [0.36, 0.52, -0.9], [0.44, 0.6, 0.7], [0.5, 0.47, -0.9], [0.58, 0.55, 0.7], [0.66, 0.42, -0.6],
   ];
-  for (const [cx, cy, ang] of leaves) if (inLeaf(x, y, cx, cy, 0.075, 0.03, ang)) return LEAF;
-  if (Math.hypot(x - 0.71, y - 0.47) < 0.035) return TERRA; // one olive
-  return CREAM;
+  for (const [cx, cy, ang] of leaves) if (inLeaf(x, y, cx, cy, 0.075, 0.03, ang)) return BLUE;
+  if (Math.hypot(x - 0.71, y - 0.47) < 0.035) return SKY; // one olive
+  return WHITE;
 }
 
 function icon(size) {
