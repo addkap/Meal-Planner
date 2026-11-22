@@ -107,7 +107,7 @@ export interface PlanResult {
 
 const slotsFor = (d: DaySetup): MealSlot[] => (d.snack ? ['breakfast', 'lunch', 'dinner', 'snack'] : ['breakfast', 'lunch', 'dinner']);
 const key = (date: string, slot: MealSlot) => `${date}|${slot}`;
-export const isFixed = (m: PlannedMeal) => !!m.locked || !!m.batchId;
+export const isFixed = (m: PlannedMeal) => !!m.locked || !!m.batchId || !!m.custom;
 
 // ---------------------------------------------------------------- portions
 
@@ -321,9 +321,9 @@ function fillDay(
     const fit = fitPortions(
       picks.map((p, i) => {
         const f = fixedHere[i];
-        const kcal = p?.kcal ?? 0;
-        const fiber = p?.fiber ?? 0;
-        if (f && (f.batchId || f.locked)) return { kcal, fiber, portions: [f.portion] };
+        const kcal = p?.kcal ?? f?.custom?.kcal ?? 0;
+        const fiber = p?.fiber ?? f?.custom?.fiber ?? 0;
+        if (f && isFixed(f)) return { kcal, fiber, portions: [f.portion] };
         return { kcal, fiber, portions: p?.cls === 'red' ? RED_MEAT_PORTIONS : PORTIONS };
       }),
       d.kcalTarget,
@@ -341,7 +341,7 @@ function fillDay(
     const f = fixedHere[i];
     const p = best?.picks[i];
     const portion = best?.portions[i] ?? f?.portion ?? 1;
-    if (f) return { ...f, portion: f.batchId || f.locked ? f.portion : portion };
+    if (f) return { ...f, portion: isFixed(f) ? f.portion : portion };
     return { slot: s, recipeId: p?.id, portion, people: d.people };
   });
 
@@ -467,9 +467,8 @@ export function dayKcalFiber(day: DayPlan, pool: PoolRecipe[], batches: BatchInf
   let fiber = 0;
   for (const m of day.meals) {
     const p = byId.get(m.recipeId ?? batchRecipe.get(m.batchId ?? '') ?? '');
-    if (!p) continue;
-    kcal += p.kcal * m.portion;
-    fiber += p.fiber * m.portion;
+    kcal += (p?.kcal ?? m.custom?.kcal ?? 0) * m.portion;
+    fiber += (p?.fiber ?? m.custom?.fiber ?? 0) * m.portion;
   }
   return { kcal, fiber };
 }
@@ -541,4 +540,84 @@ function unlockOthers(res: PlanResult, original: DayPlan[], date: string, slot?:
     }),
   }));
   return { ...res, days };
+}
+
+// ---------------------------------------------------------------- choosing a swap herself
+
+export interface SwapOption {
+  recipe: PoolRecipe;
+  portion: number;
+  /** The day's calories with this recipe in place. */
+  dayKcal: number;
+  /** True when it keeps every rule (protein counts, no repeats, effort...). */
+  fits: boolean;
+  /** Plan rules it would break, in plain words (empty when it fits). */
+  breaks: string[];
+}
+
+/** Her serving size for a recipe in this slot that brings the day closest to its calorie target. */
+export function bestPortion(day: DayPlan, slot: MealSlot, p: PoolRecipe, ctx: Ctx): { portion: number; dayKcal: number } {
+  const others = dayKcalFiber({ ...day, meals: day.meals.filter((m) => m.slot !== slot) }, ctx.pool, ctx.batches).kcal;
+  const sizes = p.cls === 'red' ? RED_MEAT_PORTIONS : PORTIONS;
+  let best = { portion: 1, dayKcal: others + p.kcal };
+  for (const s of sizes) {
+    const k = others + p.kcal * s;
+    const better = Math.abs(k - day.kcalTarget) < Math.abs(best.dayKcal - day.kcalTarget) - 1e-9 || (Math.abs(Math.abs(k - day.kcalTarget) - Math.abs(best.dayKcal - day.kcalTarget)) < 1e-9 && Math.abs(s - 1) < Math.abs(best.portion - 1));
+    if (better) best = { portion: s, dayKcal: k };
+  }
+  return best;
+}
+
+/**
+ * Every recipe that could go in this slot, best first: the ones that keep all the plan's rules and land the day
+ * near its calorie target come first (and her favorites and "Use more" recipes before others).
+ * Recipes she said "Don't use again" about are left out.
+ */
+export function swapOptions(days: DayPlan[], date: string, slot: MealSlot, ctx: Ctx): SwapOption[] {
+  const day = days.find((d) => d.date === date);
+  if (!day) return [];
+  const cur = day.meals.find((m) => m.slot === slot);
+  const keyOf = (v: Violation) => `${v.rule}|${v.date ?? ''}|${v.message}`;
+  const before = new Set(checkWeek(days, ctx).map(keyOf));
+  const out: SwapOption[] = [];
+  for (const p of ctx.pool) {
+    if (p.weight <= 0 || !p.meals.includes(slot) || p.id === cur?.recipeId) continue;
+    const { portion, dayKcal } = bestPortion(day, slot, p, ctx);
+    const meal: PlannedMeal = { slot, recipeId: p.id, portion, people: cur?.people ?? day.people };
+    const trial = days.map((d) => (d.date !== date ? d : { ...d, meals: d.meals.map((m) => (m.slot === slot ? meal : m)) }));
+    const added = checkWeek(trial, ctx).filter((v) => !before.has(keyOf(v)));
+    out.push({ recipe: p, portion, dayKcal, fits: added.length === 0, breaks: added.map((v) => v.message) });
+  }
+  const near = (o: SwapOption) => Math.abs(o.dayKcal - day.kcalTarget) / day.kcalTarget <= KCAL_TOLERANCE;
+  return out.sort((a, b) =>
+    Number(b.fits) - Number(a.fits) ||
+    Number(near(b)) - Number(near(a)) ||
+    b.recipe.weight - a.recipe.weight ||
+    Math.abs(a.dayKcal - day.kcalTarget) - Math.abs(b.dayKcal - day.kcalTarget));
+}
+
+/**
+ * After she picks a recipe or types in a meal herself, re-tune the serving sizes of the day's other meals
+ * (not the ones she keeps, not batch servings) so the day lands near its calorie target again.
+ */
+export function retuneDay(day: DayPlan, ctx: Ctx): DayPlan {
+  const byId = new Map(ctx.pool.map((p) => [p.id, p]));
+  const batchRecipe = new Map((ctx.batches ?? []).map((b) => [b.id, b.recipeId]));
+  const fit = fitPortions(
+    day.meals.map((m) => {
+      const p = byId.get(m.recipeId ?? batchRecipe.get(m.batchId ?? '') ?? '');
+      const kcal = p?.kcal ?? m.custom?.kcal ?? 0;
+      const fiber = p?.fiber ?? m.custom?.fiber ?? 0;
+      if (isFixed(m) || !p) return { kcal, fiber, portions: [m.portion] };
+      return { kcal, fiber, portions: p.cls === 'red' ? RED_MEAT_PORTIONS : PORTIONS };
+    }),
+    day.kcalTarget,
+  );
+  const meals = day.meals.map((m, i) => ({ ...m, portion: fit.portions[i] }));
+  const warnings: string[] = [];
+  const pct = Math.round(((fit.kcal - day.kcalTarget) / day.kcalTarget) * 100);
+  if (Math.abs(fit.kcal - day.kcalTarget) / day.kcalTarget > KCAL_TOLERANCE) warnings.push(`About ${Math.round(fit.kcal)} calories, ${Math.abs(pct)}% ${pct < 0 ? 'under' : 'over'} the ${day.kcalTarget} target.`);
+  const unknownFiber = day.meals.some((m) => m.custom && m.custom.fiber === undefined);
+  if (fit.fiber < day.fiberTarget) warnings.push(`About ${Math.round(fit.fiber)} g of fiber, under the ${day.fiberTarget} g target${unknownFiber ? ' (not counting the meal you typed in, which has no fiber entered)' : ''}.`);
+  return { ...day, meals, warnings };
 }

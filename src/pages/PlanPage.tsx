@@ -8,12 +8,14 @@ import { savePlan } from '../store';
 import { addDays, dayName, shortDate, todayLocal, weekDates, weekStartOf } from '../lib/dates';
 import { consistentFlags, dailyTargets } from '../lib/dri';
 import { NUTRIENT_INFO } from '../lib/nutrients';
-import { generateWeek, isFixed, regenerateDay, regenerateWeek, swapMeal, type DaySetup } from '../lib/planner';
+import { generateWeek, isFixed, regenerateDay, regenerateWeek, retuneDay, swapMeal, type DaySetup } from '../lib/planner';
 import { planNutrition } from '../lib/planNutrition';
 import { formatQty } from '../lib/units';
 import NutritionPanel from '../components/NutritionPanel';
+import SwapMenu from '../components/SwapMenu';
 import { EffortBadge, kcalText, minutesText, Segmented, Stepper, Toggle } from '../components/ui';
-import type { DayPlan, Effort, MealSlot, PlannedMeal, WeekPlan } from '../types';
+import type { CustomMeal, DayPlan, Effort, MealSlot, PlannedMeal, WeekPlan } from '../types';
+import type { SwapOption } from '../lib/planner';
 
 const SLOT_LABEL: Record<MealSlot, string> = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack' };
 const EFFORT_OPTIONS: { value: Effort; label: string }[] = [
@@ -158,8 +160,12 @@ function WeekView({ plan, onEditSetup }: { plan: WeekPlan; onEditSetup: () => vo
   const ctx = { pool, rules: settings.rules, batches: batchInfo };
   const save = (days: DayPlan[], warnings?: string[]) => savePlan({ ...plan, days, warnings: warnings ?? plan.warnings });
 
-  const updateMeal = (date: string, slot: MealSlot, patch: Partial<PlannedMeal>) =>
-    save(plan.days.map((d) => (d.date !== date ? d : { ...d, meals: d.meals.map((m) => (m.slot === slot ? { ...m, ...patch } : m)) })));
+  const updateMeal = (date: string, slot: MealSlot, patch: Partial<PlannedMeal>, retune = false) =>
+    save(plan.days.map((d) => {
+      if (d.date !== date) return d;
+      const next = { ...d, meals: d.meals.map((m) => (m.slot === slot ? { ...m, ...patch } : m)) };
+      return retune ? retuneDay(next, ctx) : next;
+    }));
 
   return (
     <>
@@ -183,9 +189,17 @@ function WeekView({ plan, onEditSetup }: { plan: WeekPlan; onEditSetup: () => vo
         <DayCard
           key={d.date}
           day={d}
+          days={plan.days}
           weekStart={plan.weekStart}
           onToggleLock={(slot, locked) => void updateMeal(d.date, slot, { locked })}
-          onSwap={(slot) => { const r = swapMeal(plan.days, d.date, slot, ctx, newSeed()); void save(r.days); }}
+          onSurprise={(slot) => {
+            // a fresh pick for this slot (if she had typed something in, the slot opens up again first)
+            const open = plan.days.map((x) => (x.date !== d.date ? x : { ...x, meals: x.meals.map((m) => (m.slot === slot ? { slot, recipeId: m.recipeId, portion: 1, people: m.people } : m)) }));
+            const r = swapMeal(open, d.date, slot, ctx, newSeed());
+            void save(r.days);
+          }}
+          onPickRecipe={(slot, o: SwapOption) => void updateMeal(d.date, slot, { recipeId: o.recipe.id, custom: undefined, batchId: undefined, portion: o.portion, locked: true }, true)}
+          onCustom={(slot, c: CustomMeal) => void updateMeal(d.date, slot, { recipeId: undefined, batchId: undefined, custom: c, portion: 1, locked: true }, true)}
           onRegenerateDay={() => { const r = regenerateDay(plan.days, d.date, ctx, newSeed()); void save(r.days); }}
         />
       ))}
@@ -200,12 +214,41 @@ function WeekView({ plan, onEditSetup }: { plan: WeekPlan; onEditSetup: () => vo
   );
 }
 
-function DayCard({ day, weekStart, onToggleLock, onSwap, onRegenerateDay }: { day: DayPlan; weekStart: string; onToggleLock: (slot: MealSlot, locked: boolean) => void; onSwap: (slot: MealSlot) => void; onRegenerateDay: () => void }) {
+function DayCard({ day, days, weekStart, onToggleLock, onSurprise, onPickRecipe, onCustom, onRegenerateDay }: {
+  day: DayPlan;
+  days: DayPlan[];
+  weekStart: string;
+  onToggleLock: (slot: MealSlot, locked: boolean) => void;
+  onSurprise: (slot: MealSlot) => void;
+  onPickRecipe: (slot: MealSlot, o: SwapOption) => void;
+  onCustom: (slot: MealSlot, c: CustomMeal) => void;
+  onRegenerateDay: () => void;
+}) {
   const { poolById, batchInfo } = useAppData();
   const { open } = useNav();
+  const [swapping, setSwapping] = useState<MealSlot | null>(null);
+  const close = () => setSwapping(null);
   const recipeIdOf = (m: PlannedMeal) => m.recipeId ?? batchInfo.find((b) => b.id === m.batchId)?.recipeId;
-  const kcal = day.meals.reduce((s, m) => s + (poolById.get(recipeIdOf(m) ?? '')?.kcal ?? 0) * m.portion, 0);
-  const fiber = day.meals.reduce((s, m) => s + (poolById.get(recipeIdOf(m) ?? '')?.fiber ?? 0) * m.portion, 0);
+  const kcal = day.meals.reduce((s, m) => s + (poolById.get(recipeIdOf(m) ?? '')?.kcal ?? m.custom?.kcal ?? 0) * m.portion, 0);
+  const fiber = day.meals.reduce((s, m) => s + (poolById.get(recipeIdOf(m) ?? '')?.fiber ?? m.custom?.fiber ?? 0) * m.portion, 0);
+  const menu = (m: PlannedMeal) =>
+    swapping === m.slot && (
+      <SwapMenu
+        days={days}
+        day={day}
+        slot={m.slot}
+        onClose={close}
+        onSurprise={() => { onSurprise(m.slot); close(); }}
+        onPickRecipe={(o) => { onPickRecipe(m.slot, o); close(); }}
+        onCustom={(c) => { onCustom(m.slot, c); close(); }}
+      />
+    );
+  const actions = (m: PlannedMeal) => (
+    <div className="meal-actions">
+      <button className={m.locked ? 'chip on' : 'chip'} aria-pressed={!!m.locked} onClick={() => onToggleLock(m.slot, !m.locked)}>{m.locked ? 'Locked' : 'Lock'}</button>
+      <button className={swapping === m.slot ? 'chip on' : 'chip'} aria-expanded={swapping === m.slot} onClick={() => setSwapping(swapping === m.slot ? null : m.slot)}>Swap ▾</button>
+    </div>
+  );
   return (
     <section className="day" aria-label={dayName(day.date)}>
       <div className="day-head">
@@ -217,7 +260,20 @@ function DayCard({ day, weekStart, onToggleLock, onSwap, onRegenerateDay }: { da
       {day.meals.map((m) => {
         const rid = recipeIdOf(m);
         const p = poolById.get(rid ?? '');
-        if (!p) return <div key={m.slot} className="meal-card empty">{SLOT_LABEL[m.slot]}: nothing planned</div>;
+        if (m.custom) {
+          return (
+            <div key={m.slot} className={m.locked ? 'meal-card locked' : 'meal-card'}>
+              <div className="meal-main static">
+                <span className="meal-slot">{SLOT_LABEL[m.slot]} · your own</span>
+                <span className="meal-name">{m.custom.name}</span>
+                <span className="meal-meta"><span>{m.custom.kcal !== undefined ? kcalText(m.custom.kcal) : 'calories not entered'}</span></span>
+              </div>
+              {actions(m)}
+              {menu(m)}
+            </div>
+          );
+        }
+        if (!p) return <div key={m.slot} className="meal-card empty">{SLOT_LABEL[m.slot]}: nothing planned{actions(m)}{menu(m)}</div>;
         return (
           <div key={m.slot} className={m.locked ? 'meal-card locked' : 'meal-card'}>
             <button className="meal-main" onClick={() => open({ name: 'recipe', recipeId: p.id, meal: { weekStart, date: day.date, slot: m.slot } })}>
@@ -230,12 +286,8 @@ function DayCard({ day, weekStart, onToggleLock, onSwap, onRegenerateDay }: { da
                 {m.portion !== 1 && <span>{formatQty(m.portion)} servings</span>}
               </span>
             </button>
-            {!m.batchId && (
-              <div className="meal-actions">
-                <button className={m.locked ? 'chip on' : 'chip'} aria-pressed={!!m.locked} onClick={() => onToggleLock(m.slot, !m.locked)}>{m.locked ? 'Locked' : 'Lock'}</button>
-                {!m.locked && <button className="chip" onClick={() => onSwap(m.slot)}>Swap</button>}
-              </div>
-            )}
+            {!m.batchId && actions(m)}
+            {menu(m)}
           </div>
         );
       })}

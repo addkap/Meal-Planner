@@ -108,12 +108,22 @@ export interface RecipePref extends Rec {
 
 // ---------------------------------------------------------------- weekly plan
 
+/** Something she typed in for a meal instead of a recipe ("Dinner out", "Leftover soup"). */
+export interface CustomMeal {
+  name: string;
+  kcal?: number; // her estimate, if she gave one
+  fiber?: number;
+  protein?: number;
+}
+
 export interface PlannedMeal {
   slot: MealSlot;
-  recipeId?: string; // empty when the slot is off (snack off) or filled by a batch
+  recipeId?: string; // empty when the slot is off (snack off), filled by a batch, or custom
   batchId?: string; // filled by a batch she cooked
+  custom?: CustomMeal; // she typed it in herself
   portion: number; // her own serving size, 0.75 to 1.5
   people: number; // how many people this meal is cooked for (scales ingredients and groceries)
+  /** "Keep": she wants this meal, so new plans and re-balancing leave it alone. Not the same as eating it. */
   locked?: boolean;
 }
 

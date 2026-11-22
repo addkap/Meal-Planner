@@ -3,7 +3,7 @@ import { BUILTIN_RECIPES } from '../data/recipes';
 import { weekDates } from './dates';
 import { buildPool, DEFAULT_RULES, explainPlacement, type PoolRecipe } from './pool';
 import {
-  ACTIVE_CAP, checkWeek, dayKcalFiber, fitPortions, generateWeek, isFixed, KCAL_TOLERANCE, rebalanceWeek, regenerateDay, regenerateWeek, swapMeal,
+  ACTIVE_CAP, checkWeek, dayKcalFiber, fitPortions, generateWeek, isFixed, KCAL_TOLERANCE, rebalanceWeek, regenerateDay, regenerateWeek, retuneDay, swapMeal, swapOptions,
   type BatchInfo, type DaySetup, type PlanResult,
 } from './planner';
 import { planNutrition } from './planNutrition';
@@ -342,5 +342,75 @@ describe('nutrition review of a plan', () => {
     n.days.forEach((d, i) => expect(d.totals.kcal.amount).toBeCloseTo(dayKcalFiber(res.days[i], POOL).kcal, 6));
     const avg = n.days.reduce((s, d) => s + d.totals.kcal.amount, 0) / 7;
     expect(n.weeklyAverage.kcal.amount).toBeCloseTo(avg, 6);
+  });
+});
+
+describe('choosing a swap from the menu', () => {
+  const setups = randomSetups(makeRng(123));
+  const week = generateWeek(setups, ctx, 123).days;
+  const date = setups[1].date;
+  const opts = swapOptions(week, date, 'dinner', ctx);
+
+  it('lists only recipes for that meal, never the current one, never "Don\'t use again"', () => {
+    const cur = week[1].meals.find((m) => m.slot === 'dinner')!.recipeId;
+    expect(opts.length).toBeGreaterThan(10);
+    for (const o of opts) {
+      expect(o.recipe.meals).toContain('dinner');
+      expect(o.recipe.id).not.toBe(cur);
+    }
+  });
+  it('puts the ones that keep every rule first, and they really do', () => {
+    const firstMisfit = opts.findIndex((o) => !o.fits);
+    expect(opts.slice(0, Math.max(0, firstMisfit === -1 ? opts.length : firstMisfit)).every((o) => o.fits)).toBe(true);
+    for (const o of opts.filter((x) => x.fits).slice(0, 8)) {
+      const trial = week.map((d) => (d.date !== date ? d : { ...d, meals: d.meals.map((m) => (m.slot === 'dinner' ? { ...m, recipeId: o.recipe.id, portion: o.portion } : m)) }));
+      expect(checkWeek(trial, ctx).filter((v) => !v.fixed)).toEqual([]);
+    }
+  });
+  it('explains what a misfit would break', () => {
+    const misfit = opts.find((o) => !o.fits);
+    expect(misfit).toBeDefined();
+    expect(misfit!.breaks.length).toBeGreaterThan(0);
+  });
+  it('tunes her serving size to the day', () => {
+    for (const o of opts.slice(0, 5)) {
+      expect([0.75, 1, 1.25, 1.5]).toContain(o.portion);
+      if (o.recipe.cls === 'red') expect(o.portion).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
+describe('custom meals she types in', () => {
+  const setups = randomSetups(makeRng(321));
+  const fixed = setups.map((_, i) => (i === 2 ? [{ slot: 'dinner' as MealSlot, custom: { name: 'Dinner out', kcal: 800 }, portion: 1, people: 1 }] : []));
+  const res = generateWeek(setups, ctx, 321, fixed);
+  it('stay exactly as typed, and the planner works around them', () => {
+    expect(res.days[2].meals.find((m) => m.slot === 'dinner')!.custom).toEqual({ name: 'Dinner out', kcal: 800 });
+    expectRulesHold(res, setups);
+  });
+  it('count their calories toward the day', () => {
+    const { kcal } = dayKcalFiber(res.days[2], POOL);
+    const others = res.days[2].meals.filter((m) => m.slot !== 'dinner').reduce((s, m) => s + byId.get(m.recipeId!)!.kcal * m.portion, 0);
+    expect(kcal).toBeCloseTo(others + 800, 6);
+  });
+  it('show "not listed" for nutrients she did not enter', () => {
+    const n = planNutrition(res.days, POOL).days[2].totals;
+    expect(n.vitC.partial).toBe(true);
+    expect(n.kcal.partial).toBe(false);
+  });
+});
+
+describe('re-tuning a day after she changes a meal herself', () => {
+  it('adjusts the other serving sizes to get back near the target, and keeps hers as is', () => {
+    const setups = randomSetups(makeRng(55)).map((s) => ({ ...s, snack: true, kcalTarget: 1800 }));
+    const week = generateWeek(setups, ctx, 55).days;
+    const d = { ...week[0], meals: week[0].meals.map((m) => (m.slot === 'dinner' ? { slot: m.slot, custom: { name: 'Dinner out', kcal: 900 }, portion: 1, people: 1, locked: true } : m)) };
+    const tuned = retuneDay(d, ctx);
+    expect(tuned.meals.find((m) => m.slot === 'dinner')).toEqual(d.meals.find((m) => m.slot === 'dinner'));
+    const before = Math.abs(dayKcalFiber(d, POOL).kcal - 1800);
+    const after = Math.abs(dayKcalFiber(tuned, POOL).kcal - 1800);
+    expect(after).toBeLessThanOrEqual(before);
+    for (const m of tuned.meals) { expect(m.portion).toBeGreaterThanOrEqual(0.75); expect(m.portion).toBeLessThanOrEqual(1.5); }
+    if (after / 1800 > 0.05) expect(tuned.warnings!.some((w) => w.includes('calories'))).toBe(true);
   });
 });

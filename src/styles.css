@@ -154,3 +154,10 @@ details.card:not([open]) > summary::after { content: '▸'; }
 .steps { padding-left: 26px; }
 .steps li { margin: 10px 0; padding-left: 4px; }
 .feedback { display: flex; flex-wrap: wrap; }
+
+/* ---- swap menu ---- */
+.swap-menu { border-top: 3px solid var(--sky); background: var(--wash); padding: 10px 14px 14px; }
+.swap-menu h3 { margin: 4px 0; }
+.swap-row { display: block; width: 100%; text-align: left; background: #fff; border: 2px solid var(--line); border-radius: 12px; padding: 10px 12px; margin: 8px 0; cursor: pointer; }
+.swap-note { display: block; margin-top: 6px; color: var(--warn-text); background: var(--warn-bg); border-radius: 8px; padding: 4px 8px; font-size: 16px; }
+.meal-main.static { cursor: default; }

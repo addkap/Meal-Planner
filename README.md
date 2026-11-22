@@ -123,6 +123,13 @@ These are the choices made so far, and why.
   - **Setting up a week:** for each day she picks Easy, Medium or Time-consuming, turns the snack on or off, and sets the number of people. The week's calorie and fiber targets are filled in from Settings, and either can be changed for a single day.
   - **Review:** **Make my plan** shows the week together with a nutrition review: each day's calories and fiber against target, a weekly average of every nutrient, and any nutrients that are consistently low or high. She taps **Use this plan** to finalize it.
   - **Changing it:** she can lock or swap a meal, get new meals for a day or for the whole week, or change the setup. Locked meals stay.
+  - **Swap** opens a menu under the meal:
+    - **Pick one for me:** a random fit.
+    - **Up to six suggestions** that keep every plan rule. Those near the day's calorie target and her favorites come first.
+    - **Show all recipes** for that meal. A recipe that would break a rule says which one, and she can still choose it.
+    - **Type in my own:** a name ("Dinner out"), with calories and fiber if she knows them. Nutrients she does not enter show as "not listed".
+  - Anything she picks herself is locked automatically. The other meals that day then re-tune their serving sizes to get back near the calorie target.
+  - **Lock means "keep this meal"** while planning: new plans and re-balancing work around it. It is not "I ate this". That is the Today tab's checkbox (phase 5).
 - **Meal cards** show the meal, the recipe name, an effort badge, total time, calories for her portion, and her serving size when it is not 1.
 - **Recipe page:**
   - Ingredients scale with a people stepper. Opened from the plan, the stepper changes that meal's number of people, which the grocery list will use.
