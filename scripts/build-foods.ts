@@ -79,6 +79,26 @@ for (const [id, fb] of fallbackValues) {
   fb.forEach((v, i) => { if (arr[i] === null && v !== null) arr[i] = v; });
 }
 
+// Fill in zeros that are known from what a food IS, where USDA simply left the row out:
+//  - no carbohydrate means no fiber and no sugar (meat, fish, oils)
+//  - plant foods contain no cholesterol and no vitamin B12, and (apart from mushrooms) no vitamin D
+// Anything else that is missing stays "not listed".
+const PLANT_GROUPS = new Set(['Vegetables and Vegetable Products', 'Fruits and Fruit Juices', 'Legumes and Legume Products', 'Nut and Seed Products', 'Cereal Grains and Pasta', 'Spices and Herbs']);
+const idx = (key: string) => NUTRIENTS.findIndex((n) => n.key === key);
+for (const [id, arr] of values) {
+  const f = foods.get(id);
+  if (!f) continue;
+  if (arr[idx('carbs')] === 0) {
+    if (arr[idx('fiber')] === null) arr[idx('fiber')] = 0;
+    if (arr[idx('sugars')] === null) arr[idx('sugars')] = 0;
+  }
+  if (PLANT_GROUPS.has(f.group) || /^oil, (olive|canola|vegetable|sunflower|safflower|corn|peanut|sesame)/i.test(f.desc)) {
+    if (arr[idx('cholesterol')] === null) arr[idx('cholesterol')] = 0;
+    if (arr[idx('vitB12')] === null) arr[idx('vitB12')] = 0;
+    if (arr[idx('vitD')] === null && !/mushroom/i.test(f.desc)) arr[idx('vitD')] = 0;
+  }
+}
+
 const portions = new Map<number, [string, number][]>();
 for (const [, fdc, , amount, , desc, modifier, grams] of csvRows('food_portion.csv')) {
   const label = (modifier || desc).replace(/\s+/g, ' ').trim();

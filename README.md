@@ -2,13 +2,13 @@
 
 A weekly Mediterranean / Blue Zone meal planner, grocery list and nutrition tracker, built for one person to use on an iPhone. It is an installable web app (PWA), set up the same way as Lift Log: React + TypeScript + Vite, data saved on the phone first, a background copy in her OneDrive folder, and free hosting on GitHub Pages. There is no server and no account.
 
-> **Status: phase 2 of 8.** The data model, the USDA food database, the 131-recipe library and the weekly planner are done and tested. The app screens come in later phases. Right now the app shows a read-only preview of the recipe library.
+> **Status: phase 3 of 8.** The data model, food database, recipe library, planner, Plan screen and recipe pages work. Groceries, Today and More are placeholders until their phases.
 
 | Phase | What | Status |
 |---|---|---|
 | 1 | Data model, food database, recipe library | done |
 | 2 | Planner (weekly plan, diet rules, calorie and fiber targets) | done |
-| 3 | Meal plan screen and recipe pages | |
+| 3 | Meal plan screen and recipe pages | done |
 | 4 | Grocery lists by store | |
 | 5 | Daily log, nutrition summary, barcode scanning | |
 | 6 | Batch cooking and her own recipes | |
@@ -55,6 +55,8 @@ These are the choices made so far, and why.
 - **File:** `public/data/foods.json` is **517 KB**, about **183 KB** as sent to the phone (compressed). It holds only the 32 nutrients the app shows. It is not part of the app's code: it loads on its own when first needed, and the offline service worker keeps a copy on the phone.
 - **Rebuilding it:** download `FoodData_Central_sr_legacy_food_csv_2018-04.zip` from <https://fdc.nal.usda.gov/download-datasets>, unzip it **outside** this folder, then run `npm run foods -- /path/to/FoodData_Central_sr_legacy_food_csv_2018-04`. The download is never committed.
 - **"Not listed" is never zero.** If a food has no value for a nutrient, it is stored as `null`. Totals remember that something was missing and show "at least X" or "not listed" (`src/lib/nutrition.ts`). This matters most for scanned packaged foods in phase 5.
+- **Zeros known from what a food is.** USDA often leaves out a row instead of writing 0. The build fills in only zeros that follow from the food itself: no carbohydrate means no fiber or sugar (meat, fish, oil), and plant foods have no cholesterol, no vitamin B12, and no vitamin D (except mushrooms). Everything else that is missing stays "not listed".
+- **Tiny amounts:** a USDA ingredient used at under 5 g in a recipe (a pinch of spice) does not mark the recipe's totals incomplete for nutrients it does not report. Scanned and typed-in foods always do.
 - **Folate** is shown as DFE (dietary folate equivalents, what the DRIs use), with total folate as a fallback. **Vitamin A** is RAE. **Vitamin E** is alpha-tocopherol.
 
 ### Recipes
@@ -114,6 +116,27 @@ These are the choices made so far, and why.
 - 100 random weeks without batches, with random effort, snack, people and calorie and fiber targets (1,400 to 2,000 kcal), plus some per-day overrides. Every rule holds in all of them, and fewer than 5% of days miss a target. When a day does miss, it says so.
 - 100 random weeks with 1 or 2 batches and 2 locked meals. Locked meals and batch servings never move, and a batch's protein counts toward the weekly rules. The only rule problems allowed are ones the batch or locked meals cause themselves, and every one of those is shown as a warning.
 - Swap, regenerate day and week, the feedback weights ("Use more" picked more than 1.3x as often, "Use less" under 0.8x, "Don't use again" never), and the nutrition review.
+
+### Screens (phase 3)
+- **Navigation:** five bottom tabs (Plan, Groceries, Today, Recipes, More), like Lift Log's tab bar. Recipe pages open on top with a big **‹ Back** button, because a Home Screen app on iPhone has no browser Back button.
+- **Plan tab:** arrows move between weeks.
+  - **Setting up a week:** for each day she picks Easy, Medium or Time-consuming, turns the snack on or off, and sets the number of people. The week's calorie and fiber targets are filled in from Settings, and either can be changed for a single day.
+  - **Review:** **Make my plan** shows the week together with a nutrition review: each day's calories and fiber against target, a weekly average of every nutrient, and any nutrients that are consistently low or high. She taps **Use this plan** to finalize it.
+  - **Changing it:** she can lock or swap a meal, get new meals for a day or for the whole week, or change the setup. Locked meals stay.
+- **Meal cards** show the meal, the recipe name, an effort badge, total time, calories for her portion, and her serving size when it is not 1.
+- **Recipe page:**
+  - Ingredients scale with a people stepper. Opened from the plan, the stepper changes that meal's number of people, which the grocery list will use.
+  - Steps.
+  - Full nutrition per serving, and for her portion when it is not 1.
+  - Diet tags.
+  - Use more / Use less / Don't use again and Favorite buttons. Tapping a chosen button again undoes it.
+  - If the planner will not use the recipe, the reason is shown.
+- **Recipes tab:** search, filter by meal, and favorites.
+- **Nutrition display:** every nutrient shows an amount and a percent of her daily target.
+  - **Targets** (`src/lib/dri.ts`): RDA or AI for her sex and age. Fat (35%), carbs (50%) and saturated fat (under 10%) scale with her calories. Sodium is a "stay under 2,300 mg" limit. Cholesterol has no limit, following the current Dietary Guidelines.
+  - **Flags:** "Consistently low" means the weekly average is under 70% of target *and* most days are low. Nutrients with "not listed" data are never called low. "High" applies to saturated fat, sodium, and the few upper limits food can reach (iron, zinc, selenium, copper, manganese, calcium).
+- **Kitchen-friendly amounts:** scaled counts round the way a cook would (8 eggs, not 7½), measures tidy up (3 tsp shows as 1 tbsp), and counted foods get plurals (3 oranges).
+- **Snacks** are at most 320 calories, so two muffins stay a breakfast. The planner also avoids the same main protein twice in one day (an omelet breakfast and a frittata dinner).
 
 ### Barcode scanning (phase 5)
 - **Open Food Facts only** (free, no key). USDA's branded-food data needs an API key, which cannot be hidden in a public static site, so it is left out.

@@ -88,7 +88,12 @@ export function recipeNutrition(recipe: Pick<Recipe, 'ingredients' | 'servings'>
       total = addTotals(total, totalsForGrams({} as Food['per100g'], 0));
       continue;
     }
-    total = addTotals(total, totalsForGrams(r.food.per100g, r.grams));
+    // A pinch of a USDA spice with one unreported vitamin should not make the whole recipe "incomplete":
+    // under 5 g, its missing values are too small to matter. (Scanned and typed-in foods are always strict.)
+    const negligible = r.food.source === 'usda' && r.grams < 5;
+    const t = totalsForGrams(r.food.per100g, r.grams);
+    if (negligible) for (const k of Object.keys(t) as (keyof typeof t)[]) if (!t[k].known) t[k].partial = false;
+    total = addTotals(total, t);
   }
   return { total, perServing: scaleTotals(total, 1 / Math.max(1, recipe.servings)), unresolved };
 }

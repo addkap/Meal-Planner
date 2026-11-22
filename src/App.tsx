@@ -1,41 +1,66 @@
-// Phase 1 placeholder: a read-only preview of the recipe library with computed nutrition,
-// so the data can be reviewed in a browser. The real screens arrive in phase 3.
-import { useEffect, useState } from 'react';
-import { BUILTIN_RECIPES } from './data/recipes';
-import { loadFoodDb, type FoodDb } from './lib/foodDb';
-import { EFFORT_LABEL, recipeNutrition } from './lib/recipes';
-import { MEAL_SLOTS } from './types';
+import { useEffect, useMemo, useState } from 'react';
+import { AppDataProvider } from './AppData';
+import { NavCtx, TABS, type Nav, type Route, type Tab } from './nav';
+import PlanPage from './pages/PlanPage';
+import RecipePage from './pages/RecipePage';
+import RecipesPage from './pages/RecipesPage';
+import ComingSoon from './pages/ComingSoon';
 
-const TITLES = { breakfast: 'Breakfasts', lunch: 'Lunches', dinner: 'Dinners', snack: 'Snacks' } as const;
+/** True when the phone has internet. Everything works either way. */
+function useOnline(): boolean {
+  const [online, setOnline] = useState(navigator.onLine);
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
+  return online;
+}
 
 export default function App() {
-  const [db, setDb] = useState<FoodDb | null>(null);
-  const [error, setError] = useState('');
-  useEffect(() => { loadFoodDb().then(setDb, (e: Error) => setError(e.message)); }, []);
+  const [tab, setTabState] = useState<Tab>('Plan');
+  const [stack, setStack] = useState<Route[]>([]);
+  const online = useOnline();
+
+  const nav = useMemo<Nav>(() => ({
+    tab,
+    setTab: (t) => { setTabState(t); setStack([]); window.scrollTo(0, 0); },
+    open: (r) => { setStack((s) => [...s, r]); window.scrollTo(0, 0); },
+    back: () => setStack((s) => s.slice(0, -1)),
+  }), [tab]);
+
+  const top = stack[stack.length - 1];
 
   return (
-    <>
-      <header className="banner-top"><span className="brand">Meal Planner</span></header>
+    <NavCtx.Provider value={nav}>
+      <header className="banner-top">
+        <span className="brand">Meal Planner</span>
+      </header>
+      {!online && <p className="offline" role="status">Offline: everything still saves on this phone.</p>}
       <main className="page">
-        <h1>Recipe library</h1>
-        <p className="muted">Preview of the {BUILTIN_RECIPES.length} built-in recipes. Nutrition is worked out from the ingredients.</p>
-        {error && <p className="error">{error}</p>}
-        {!db && !error && <p>Loading the food list…</p>}
-        {db && MEAL_SLOTS.map((slot) => (
-          <section key={slot}>
-            <h2>{TITLES[slot]}</h2>
-            {BUILTIN_RECIPES.filter((r) => r.meal === slot).map((r) => {
-              const n = recipeNutrition(r, db).perServing;
-              return (
-                <div className="card" key={r.id}>
-                  <strong>{r.name}</strong>
-                  <p className="muted">{EFFORT_LABEL[r.effort]} · {r.totalMin} min · {Math.round(n.kcal.amount)} kcal · {Math.round(n.protein.amount)} g protein · {n.fiber.amount.toFixed(0)} g fiber</p>
-                </div>
-              );
-            })}
-          </section>
-        ))}
+        <AppDataProvider>
+          {top?.name === 'recipe' ? (
+            <RecipePage key={top.recipeId + (top.meal?.date ?? '') + (top.meal?.slot ?? '')} recipeId={top.recipeId} meal={top.meal} />
+          ) : (
+            <>
+              {tab === 'Plan' && <PlanPage />}
+              {tab === 'Groceries' && <ComingSoon title="Groceries" phase={4} text="Grocery lists split by store." />}
+              {tab === 'Today' && <ComingSoon title="Today" phase={5} text="Check off what you ate, log other foods, scan barcodes, and see the day's nutrition." />}
+              {tab === 'Recipes' && <RecipesPage />}
+              {tab === 'More' && <ComingSoon title="More" phase={7} text="Weight tracker and Settings." />}
+            </>
+          )}
+        </AppDataProvider>
       </main>
-    </>
+      <nav className="tabbar" aria-label="Main">
+        {TABS.map((t) => (
+          <button key={t} className={t === tab && !top ? 'tab active' : 'tab'} aria-current={t === tab ? 'page' : undefined} onClick={() => nav.setTab(t)}>
+            {t}
+          </button>
+        ))}
+      </nav>
+    </NavCtx.Provider>
   );
 }

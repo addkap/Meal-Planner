@@ -31,6 +31,8 @@ const RED_MEAT_PORTIONS = [0.75, 1]; // red meat stays a small portion
 const ATTEMPTS = 25;
 const COMBOS_PER_DAY = 40;
 const MAX_TREATS = 2;
+/** A snack is at most this many calories per serving (some breakfasts, like egg bites, double as snacks). */
+export const SNACK_MAX_KCAL = 320;
 const MAX_SWEET_TREATS = 1; // her recipes that break the sugar rule
 
 /** Which recipe effort tiers fit each meal on a day of the given effort, and how much to favor each. */
@@ -259,6 +261,7 @@ function fillDay(
     const excluded = input.exclude?.get(key(d.date, s));
     return pool.filter((p) => {
       if (p.weight <= 0 || !p.meals.includes(s) || p.cls !== c || state.used.has(p.id) || excluded?.has(p.id)) return false;
+      if (s === 'snack' && p.kcal > SNACK_MAX_KCAL) return false; // e.g. two muffins are breakfast, not a snack
       if (effortWeight(s, d.effort, p.effort) <= 0) return false;
       if (s === 'snack' ? p.issues.length > 0 && !p.treat : p.issues.length > 0) return false;
       if ((s === 'lunch' || s === 'dinner') && !p.veg) return false;
@@ -308,10 +311,10 @@ function fillDay(
     if (eggs > 0 && state.eggs + eggs > rules.eggMealsMax) continue; // (batches alone may already be over: then just add no more)
     const active = batchCookMin + picks.reduce((sum, p, i) => sum + (p && !fixedHere[i]?.batchId ? p.activeMin : 0), 0);
     if (active > limit && picks.some((_, i) => !fixedHere[i])) continue;
-    // Prefer not to have the same main protein at lunch and dinner (chickpeas twice in one day), when possible.
-    const lunchP = picks[slots.indexOf('lunch')]?.protein;
-    const dinnerP = picks[slots.indexOf('dinner')]?.protein;
-    if (lunchP && lunchP === dinnerP && lunchP !== 'none' && t < COMBOS_PER_DAY / 2) continue;
+    // Prefer not to have the same main protein twice in one day (chickpeas at lunch and dinner, eggs at
+    // breakfast and dinner), when possible. Nuts, yogurt and cheese are small parts of many meals, so they may repeat.
+    const mains = (['breakfast', 'lunch', 'dinner'] as MealSlot[]).map((s) => picks[slots.indexOf(s)]?.protein).filter((x) => x && !['none', 'nuts', 'yogurt', 'cheese'].includes(x));
+    if (new Set(mains).size < mains.length && t < COMBOS_PER_DAY / 2) continue;
     const hasLegume = picks.some((p) => p?.legume);
     if (legume.requireLegume && !hasLegume) continue;
 

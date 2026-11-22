@@ -121,11 +121,49 @@ export function formatQty(q: number, unit = ''): string {
 
 const PLURAL_UNITS = new Set(['cup', 'slice', 'clove', 'can', 'jar', 'piece', 'stalk', 'sprig', 'head', 'bunch', 'package', 'container', 'fillet', 'bag', 'box', 'block', 'carton', 'pint', 'quart', 'leaf', 'serving', 'tortilla', 'pita', 'cap']);
 
-/** "2 cups", "1 can", "3 cloves", "8 oz". `each` shows no unit at all ("2"). */
-export function formatAmount(q: number, unit: string): string {
+/**
+ * Round a scaled amount the way a cook would: counted things (eggs, cloves, cans, slices) to the nearest half
+ * below 3 and to whole numbers from 3 up, never to zero. Measured amounts (cups, grams) are left alone.
+ */
+export function kitchenRound(q: number, unit: string): number {
   const u = normalizeUnit(unit);
+  if (isMass(u) || isVolume(u) || q <= 0) return q;
+  const r = q < 3 ? Math.round(q * 2) / 2 : Math.round(q);
+  return Math.max(r, q < 0.5 ? 0.5 : 1);
+}
+
+/** 3 tsp -> 1 tbsp, 8 tbsp -> ½ cup, but only when the bigger unit gives a clean kitchen fraction. */
+export function tidyVolume(q: number, unit: string): [number, string] {
+  const u = normalizeUnit(unit);
+  const clean = (x: number) => [1, 2, 3, 4].some((d) => Math.abs(x * d - Math.round(x * d)) < 0.02);
+  if (u === 'tsp' && q >= 3 && clean(q / 3)) return tidyVolume(q / 3, 'tbsp');
+  if (u === 'tbsp' && q >= 4 && clean(q / 16)) return [q / 16, 'cup'];
+  return [q, u];
+}
+
+/** "2 cups", "1 can", "3 cloves", "8 oz". `each` shows no unit at all ("2"). Counted things are rounded (see kitchenRound). */
+export function formatAmount(rawQ: number, rawUnit: string): string {
+  const [vq, u] = tidyVolume(rawQ, rawUnit);
+  const q = kitchenRound(vq, u);
   const n = formatQty(q, u);
   if (u === 'each') return n;
   const plural = PLURAL_UNITS.has(u) && (q > 1.0001) ? (u === 'leaf' ? 'leaves' : u === 'bunch' ? 'bunches' : u === 'box' ? 'boxes' : u + 's') : u;
   return `${n} ${plural}`;
+}
+
+/** "orange" -> "oranges", "red bell pepper" -> "red bell peppers", "tomato" -> "tomatoes", "eggs" stays. */
+export function pluralize(name: string): string {
+  if (name.includes(',') || /s$/i.test(name)) return name;
+  if (/(potato|tomato)$/i.test(name)) return name + 'es';
+  if (/[^aeiou]y$/i.test(name)) return name.slice(0, -1) + 'ies';
+  return name + 's';
+}
+
+/** One ingredient line as a cook reads it: "2 cups spinach", "3 oranges", "1 medium onion, diced". */
+export function ingredientText(qty: number, unit: string, foodName: string, note?: string): string {
+  const [vq, u] = tidyVolume(qty, unit);
+  const q = kitchenRound(vq, u);
+  const counted = u === 'each' || u === 'small' || u === 'medium' || u === 'large';
+  const name = counted && q > 1 ? pluralize(foodName) : foodName;
+  return `${formatAmount(vq, u)} ${name}${note ? `, ${note}` : ''}`;
 }

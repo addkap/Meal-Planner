@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatAmount, formatQty, makePortion, normalizeUnit, portionUnit, toGrams, unitsFor } from './units';
+import { formatAmount, formatQty, ingredientText, makePortion, normalizeUnit, pluralize, portionUnit, toGrams, unitsFor } from './units';
 import { testDb } from './testDb';
 
 const food = (portions: [string, number][]) => ({ portions: portions.map(([l, g]) => makePortion(l, g)) });
@@ -100,11 +100,36 @@ describe('formatting amounts for a recipe card', () => {
     expect(formatQty(1.25, 'lb')).toBe('1.3');
     expect(formatQty(6, 'oz')).toBe('6');
   });
+  it('rounds counted things like a cook would', () => {
+    expect(formatAmount(7.5, 'large')).toBe('8 large'); // 10 eggs for 4 people, cooking for 3
+    expect(formatAmount(1.5, 'clove')).toBe('1½ cloves');
+    expect(formatAmount(1.4, 'clove')).toBe('1½ cloves');
+    expect(formatAmount(0.2, 'each')).toBe('½');
+    expect(formatAmount(0.75, 'can')).toBe('1 can');
+    expect(formatAmount(1.125, 'cup')).toBe('1⅛ cups'); // measured amounts are not rounded to halves
+  });
   it('pluralizes counted units and hides "each"', () => {
     expect(formatAmount(2, 'cup')).toBe('2 cups');
     expect(formatAmount(1, 'can')).toBe('1 can');
     expect(formatAmount(3, 'each')).toBe('3');
     expect(formatAmount(2, 'tbsp')).toBe('2 tbsp');
     expect(formatAmount(2, 'leaf')).toBe('2 leaves');
+  });
+});
+
+describe('ingredient lines', () => {
+  it('reads naturally', () => {
+    expect(ingredientText(3, 'each', 'orange')).toBe('3 oranges');
+    expect(ingredientText(1, 'each', 'orange')).toBe('1 orange');
+    expect(ingredientText(2, 'medium', 'onion', 'diced')).toBe('2 medium onions, diced');
+    expect(ingredientText(7.5, 'large', 'eggs')).toBe('8 large eggs');
+    expect(ingredientText(1.5, 'cup', 'spinach')).toBe('1½ cups spinach');
+    expect(ingredientText(3, 'tsp', 'olive oil')).toBe('1 tbsp olive oil');
+    expect(ingredientText(8, 'tbsp', 'feta')).toBe('½ cup feta');
+    expect(ingredientText(6, 'tbsp', 'feta')).toBe('6 tbsp feta'); // 3/8 cup is not a clean measure
+    expect(ingredientText(1.5, 'tsp', 'cumin')).toBe('1½ tsp cumin');
+    expect(pluralize('tomato')).toBe('tomatoes');
+    expect(pluralize('red bell pepper')).toBe('red bell peppers');
+    expect(pluralize('chickpeas, canned, drained')).toBe('chickpeas, canned, drained');
   });
 });

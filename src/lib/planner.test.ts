@@ -276,7 +276,7 @@ describe('effort levels', () => {
 
 describe('her preferences', () => {
   const setupsFor = (i: number) => randomSetups(makeRng(9000 + i));
-  const countIn = (pool: PoolRecipe[], id: string, weeks = 60) => {
+  const countIn = (pool: PoolRecipe[], id: string, weeks = 80) => {
     let n = 0;
     for (let i = 0; i < weeks; i++) {
       const res = generateWeek(setupsFor(i), { pool, rules: DEFAULT_RULES }, 9000 + i);
@@ -284,7 +284,7 @@ describe('her preferences', () => {
     }
     return n;
   };
-  const target = 'l-greek-lentil-salad';
+  const target = 'l-smoky-black-bean-soup'; // picked now and then (not every week), so more and less both show
   const withPref = (pref: Partial<RecipePref>) => buildPool(BUILTIN_RECIPES, db, new Map([[target, { id: target, updatedAt: 1, ...pref }]]));
 
   it('"Don\'t use again" removes a recipe completely', () => {

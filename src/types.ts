@@ -135,6 +135,8 @@ export interface WeekPlan extends Rec {
   days: DayPlan[];
   finalized: boolean;
   seed: number;
+  /** Rule problems caused by her locked meals or batches (shown on the plan). */
+  warnings?: string[];
 }
 
 // ---------------------------------------------------------------- batches
