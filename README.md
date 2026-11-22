@@ -2,12 +2,12 @@
 
 A weekly Mediterranean / Blue Zone meal planner, grocery list and nutrition tracker, built for one person to use on an iPhone. It is an installable web app (PWA), set up the same way as Lift Log: React + TypeScript + Vite, data saved on the phone first, a background copy in her OneDrive folder, and free hosting on GitHub Pages. There is no server and no account.
 
-> **Status: phase 1 of 8.** The data model, the USDA food database and the 131-recipe library are done and tested. The app screens come in later phases. Right now the app shows a read-only preview of the recipe library.
+> **Status: phase 2 of 8.** The data model, the USDA food database, the 131-recipe library and the weekly planner are done and tested. The app screens come in later phases. Right now the app shows a read-only preview of the recipe library.
 
 | Phase | What | Status |
 |---|---|---|
 | 1 | Data model, food database, recipe library | done |
-| 2 | Planner (weekly plan, diet rules, calorie and fiber targets) | |
+| 2 | Planner (weekly plan, diet rules, calorie and fiber targets) | done |
 | 3 | Meal plan screen and recipe pages | |
 | 4 | Grocery lists by store | |
 | 5 | Daily log, nutrition summary, barcode scanning | |
@@ -68,6 +68,53 @@ These are the choices made so far, and why.
 - **Rules every built-in recipe passes (tested):** every ingredient can be weighed; calories per serving are realistic for the meal; red meat is at most about 3.5 oz raw per serving; olive oil is the main added fat; added sugar is at most 12 g per serving. Nearly every lunch and dinner has vegetables, and more than half have beans or legumes.
 - **Mix for the planner:** dinners include 14 fish or seafood, 10 poultry, 5 red meat and 22 plant-based. They include 15 Easy, 18 Medium and 18 Time-consuming. Batch-friendly recipes exist for every meal, including the 12 egg bites example.
 
+### Planner (`src/lib/planner.ts`, `src/lib/pool.ts`)
+**How a week is built**
+1. Meals she locked and batch servings go in first and never change.
+2. The week's protein quotas are drawn within her rules, minus whatever the fixed meals already use. The default rules are fish or seafood 2 to 3 times, poultry 1 to 2, and red meat at most once. Each quota goes to a specific dinner, or a lunch if no dinner fits. Every other meal is plant-based: beans, lentils, eggs, dairy, nuts. This makes the weekly counts exact rather than lucky.
+3. Each day is filled by drawing recipes at random, in proportion to how much she likes them, and keeping the first combination that passes every rule and hits the targets. Her serving size is then tuned between 0.75x and 1.5x, in quarter steps, so the day lands within 5% of its calorie target and meets its fiber target.
+4. The whole week is checked against every rule. If anything is off, it starts again from a different random point (up to 25 times) and keeps the best result.
+
+**Rules it enforces (defaults, adjustable in Settings in phase 8)**
+- Fish or seafood 2 to 3 times a week, poultry 1 to 2 times, red meat at most once. Red meat servings never go above 1x, so it stays a small portion (about 3.5 oz raw at most).
+- Beans or legumes on at least 5 of 7 days.
+- Vegetables in every lunch and dinner.
+- At most 4 egg-based meals a week.
+- At most 2 sweet snacks a week. Her recipes that break the sugar rule (desserts) count toward that, and at most 1 of them a week.
+- Every recipe passes the sugar, olive-oil and red-meat limits.
+- No recipe twice in a week, except batch servings, which are meant to repeat.
+- Never the same main protein at dinner two days running, and preferably not at lunch and dinner on the same day.
+
+**Effort**
+- An **Easy** day gets only Easy recipes.
+- On a **Medium** day, dinner can be Easy or Medium, and Medium is favored.
+- On a **Time-consuming** day, dinner can be anything, and long recipes are favored.
+- Breakfast, lunch and snacks are Easy or Medium, favoring Easy.
+- Each day also has a cap on total hands-on cooking time: Easy 45 minutes, Medium 75, Time-consuming 120.
+- Cooking a batch counts toward the cap on the day she cooks it. Eating batch servings later takes no cooking time.
+- If her locked meals and batch cooking alone go over the cap, the other meals get the quickest recipes and the day shows a warning.
+
+**Her preferences**
+- "Use more" makes a recipe twice as likely, "Use less" half as likely, and "Don't use again" removes it.
+- Her own recipes are 1.5x as likely.
+- A favorite is 2.5x as likely, on top of any other boost.
+- A recipe of hers that breaks a diet rule is not planned as a regular meal, and its page says why. A dessert can still show up as a snack about once a week.
+
+**Changing a plan**
+- **Swap** gives one meal a different recipe and tunes its serving size. The rest of the week stays as it is.
+- **Regenerate a day** changes only that day.
+- **Regenerate the week** keeps locked meals and batch servings and picks mostly new recipes.
+- **Re-balancing around a batch** keeps locked meals and batch servings. Where the rules still allow, it keeps the recipes already planned, so the week changes as little as possible.
+
+**Warnings**
+- If a day cannot reach its calorie or fiber target, the day says so, with the numbers.
+- If her batches or locked meals themselves break a rule (for example a batch that fills 4 fish meals), the plan shows that too, and the planner works around it.
+
+**Tests (`src/lib/planner.test.ts`)**
+- 100 random weeks without batches, with random effort, snack, people and calorie and fiber targets (1,400 to 2,000 kcal), plus some per-day overrides. Every rule holds in all of them, and fewer than 5% of days miss a target. When a day does miss, it says so.
+- 100 random weeks with 1 or 2 batches and 2 locked meals. Locked meals and batch servings never move, and a batch's protein counts toward the weekly rules. The only rule problems allowed are ones the batch or locked meals cause themselves, and every one of those is shown as a warning.
+- Swap, regenerate day and week, the feedback weights ("Use more" picked more than 1.3x as often, "Use less" under 0.8x, "Don't use again" never), and the nutrition review.
+
 ### Barcode scanning (phase 5)
 - **Open Food Facts only** (free, no key). USDA's branded-food data needs an API key, which cannot be hidden in a public static site, so it is left out.
 
@@ -75,7 +122,7 @@ These are the choices made so far, and why.
 
 ## Project map
 - `src/types.ts` the data model (every synced record has an `id` and `updatedAt`, like Lift Log)
-- `src/lib/` rules and calculations: units, nutrition math, recipe math, food database (all unit tested)
+- `src/lib/` rules and calculations: units, nutrition math, recipe math, food database, planner (all unit tested)
 - `src/data/foodKeys.ts` the USDA foods the recipes use
 - `src/data/recipes/` the built-in recipe library
 - `public/data/foods.json` the trimmed USDA database (generated by `scripts/build-foods.ts`)
