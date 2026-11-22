@@ -5,6 +5,7 @@ import PlanPage from './pages/PlanPage';
 import RecipePage from './pages/RecipePage';
 import RecipesPage from './pages/RecipesPage';
 import ComingSoon from './pages/ComingSoon';
+import GroceriesPage from './pages/GroceriesPage';
 
 /** True when the phone has internet. Everything works either way. */
 function useOnline(): boolean {
@@ -46,7 +47,7 @@ export default function App() {
           ) : (
             <>
               {tab === 'Plan' && <PlanPage />}
-              {tab === 'Groceries' && <ComingSoon title="Groceries" phase={4} text="Grocery lists split by store." />}
+              {tab === 'Groceries' && <GroceriesPage />}
               {tab === 'Today' && <ComingSoon title="Today" phase={5} text="Check off what you ate, log other foods, scan barcodes, and see the day's nutrition." />}
               {tab === 'Recipes' && <RecipesPage />}
               {tab === 'More' && <ComingSoon title="More" phase={7} text="Weight tracker and Settings." />}

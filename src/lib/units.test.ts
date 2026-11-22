@@ -129,6 +129,8 @@ describe('ingredient lines', () => {
     expect(ingredientText(6, 'tbsp', 'feta')).toBe('6 tbsp feta'); // 3/8 cup is not a clean measure
     expect(ingredientText(1.5, 'tsp', 'cumin')).toBe('1½ tsp cumin');
     expect(pluralize('tomato')).toBe('tomatoes');
+    expect(pluralize('peach')).toBe('peaches');
+    expect(pluralize('celery')).toBe('celery stalks');
     expect(pluralize('red bell pepper')).toBe('red bell peppers');
     expect(pluralize('chickpeas, canned, drained')).toBe('chickpeas, canned, drained');
   });

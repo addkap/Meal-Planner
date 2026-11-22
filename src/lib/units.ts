@@ -57,6 +57,9 @@ const COUNT_UNITS = new Set(['slice', 'clove', 'can', 'jar', 'piece', 'stalk', '
 
 const SIZE_ORDER = ['medium', 'each', 'large', 'small'];
 
+/** Units things are sold in. A plain count ("2 pitas") never means a package of them. */
+export const PACKAGE_UNITS = new Set(['can', 'jar', 'bunch', 'head', 'bag', 'box', 'package', 'block', 'carton', 'container', 'pint', 'dozen', 'loaf', 'tub', 'bottle', 'half-gallon']);
+
 /**
  * Grams in `qty` `unit` of `food`, or null if the unit cannot be worked out for this food.
  */
@@ -80,7 +83,7 @@ export function toGrams(food: Pick<Food, 'portions'>, qty: number, rawUnit: stri
       const p = food.portions.find((x) => x.unit === s);
       if (p) return qty * p.g;
     }
-    const counted = food.portions.find((p) => !isMass(p.unit) && !isVolume(p.unit));
+    const counted = food.portions.find((p) => !isMass(p.unit) && !isVolume(p.unit) && !PACKAGE_UNITS.has(p.unit));
     return counted ? qty * counted.g : null;
   }
   return null;
@@ -119,7 +122,7 @@ export function formatQty(q: number, unit = ''): string {
   return `${w || ''}${best[1]}` || '0';
 }
 
-const PLURAL_UNITS = new Set(['cup', 'slice', 'clove', 'can', 'jar', 'piece', 'stalk', 'sprig', 'head', 'bunch', 'package', 'container', 'fillet', 'bag', 'box', 'block', 'carton', 'pint', 'quart', 'leaf', 'serving', 'tortilla', 'pita', 'cap']);
+const PLURAL_UNITS = new Set(['cup', 'slice', 'clove', 'can', 'jar', 'piece', 'stalk', 'sprig', 'head', 'bunch', 'package', 'container', 'fillet', 'bag', 'box', 'block', 'carton', 'pint', 'quart', 'leaf', 'serving', 'tortilla', 'pita', 'cap', 'tub', 'bottle', 'loaf', 'half-gallon', 'dozen']);
 
 /**
  * Round a scaled amount the way a cook would: counted things (eggs, cloves, cans, slices) to the nearest half
@@ -147,13 +150,18 @@ export function formatAmount(rawQ: number, rawUnit: string): string {
   const q = kitchenRound(vq, u);
   const n = formatQty(q, u);
   if (u === 'each') return n;
-  const plural = PLURAL_UNITS.has(u) && (q > 1.0001) ? (u === 'leaf' ? 'leaves' : u === 'bunch' ? 'bunches' : u === 'box' ? 'boxes' : u + 's') : u;
+  const IRREG: Record<string, string> = { leaf: 'leaves', bunch: 'bunches', box: 'boxes', loaf: 'loaves', dozen: 'dozen', 'half-gallon': 'half-gallons' };
+  const plural = PLURAL_UNITS.has(u) && (q > 1.0001) ? (IRREG[u] ?? u + 's') : u;
   return `${n} ${plural}`;
 }
 
 /** "orange" -> "oranges", "red bell pepper" -> "red bell peppers", "tomato" -> "tomatoes", "eggs" stays. */
+const IRREGULAR: Record<string, string> = { celery: 'celery stalks', 'fresh ginger': 'pieces fresh ginger', 'cherry tomatoes': 'cherry tomatoes' };
+
 export function pluralize(name: string): string {
+  if (IRREGULAR[name.toLowerCase()]) return IRREGULAR[name.toLowerCase()];
   if (name.includes(',') || /s$/i.test(name)) return name;
+  if (/(ch|sh|x|z)$/i.test(name)) return name + 'es';
   if (/(potato|tomato)$/i.test(name)) return name + 'es';
   if (/[^aeiou]y$/i.test(name)) return name.slice(0, -1) + 'ies';
   return name + 's';

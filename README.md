@@ -2,14 +2,14 @@
 
 A weekly Mediterranean / Blue Zone meal planner, grocery list and nutrition tracker, built for one person to use on an iPhone. It is an installable web app (PWA), set up the same way as Lift Log: React + TypeScript + Vite, data saved on the phone first, a background copy in her OneDrive folder, and free hosting on GitHub Pages. There is no server and no account.
 
-> **Status: phase 3 of 8.** The data model, food database, recipe library, planner, Plan screen and recipe pages work. Groceries, Today and More are placeholders until their phases.
+> **Status: phase 4 of 8.** The data model, food database, recipe library, planner, Plan screen, recipe pages and grocery lists work. Today and More are placeholders until their phases.
 
 | Phase | What | Status |
 |---|---|---|
 | 1 | Data model, food database, recipe library | done |
 | 2 | Planner (weekly plan, diet rules, calorie and fiber targets) | done |
 | 3 | Meal plan screen and recipe pages | done |
-| 4 | Grocery lists by store | |
+| 4 | Grocery lists by store | done |
 | 5 | Daily log, nutrition summary, barcode scanning | |
 | 6 | Batch cooking and her own recipes | |
 | 7 | Weight tracker | |
@@ -144,6 +144,39 @@ These are the choices made so far, and why.
   - **Flags:** "Consistently low" means the weekly average is under 70% of target *and* most days are low. Nutrients with "not listed" data are never called low. "High" applies to saturated fat, sodium, and the few upper limits food can reach (iron, zinc, selenium, copper, manganese, calcium).
 - **Kitchen-friendly amounts:** scaled counts round the way a cook would (8 eggs, not 7½), measures tidy up (3 tsp shows as 1 tbsp), and counted foods get plurals (3 oranges).
 - **Snacks** are at most 320 calories, so two muffins stay a breakfast. The planner also avoids the same main protein twice in one day (an omelet breakfast and a frittata dinner).
+
+### Grocery lists (phase 4, `src/lib/grocery.ts`)
+**What goes on the list**
+- Every ingredient of every planned recipe, scaled to the number of people at that meal. Her own portion size does not change the list.
+- Not batch servings, meals she typed in, or tap water.
+- A batch she plans to cook this week and has not cooked yet adds its whole recipe, scaled to the batch size. A cooked batch adds nothing.
+
+**Adding up**
+- Amounts of the same food are added together. Volumes add as volumes (¼ cup + 2 tbsp = 6 tbsp) and weights as weights.
+- Mixed kinds (1 medium onion + ½ cup chopped onion) are added by weight using the food's own USDA portion sizes.
+- If an amount cannot be weighed, its parts are listed side by side ("1 cup + 2 handfuls") rather than guessed.
+
+**Amounts you can buy**
+- Totals are rounded up to what the store sells: whole onions and lemons, cans, bunches, bags, heads of garlic, loaves, tubs of yogurt, half-gallons of milk, and a dozen eggs. The exact amount the recipes need is shown underneath ("Recipes need 1½ cans").
+- A hair over a whole can is not rounded up to another can.
+- Lemon and lime juice and zest become whole lemons and limes (about 3 tbsp of juice or 1 tbsp of zest per lemon, 2 tbsp of juice per lime).
+- Meat and fish are listed by weight (ounces, or pounds from 1 lb).
+- The sizes used are standard US ones, in `src/data/foodKeys.ts`. For example, a 15-oz can of beans is 240 g drained, a bunch of parsley is 60 g, and a bag of spinach is 5 oz.
+
+**Stores**
+- She adds, renames and removes stores at the bottom of the Groceries tab. Settings in phase 8 will link to the same place.
+- A new item first appears under **Where do you buy these?** One tap on a store (or **Any store**) is remembered for every later week. **Put all at…** sorts a whole batch of new items at once.
+- From an item's row she can move it with **Always buy it there** or **Just this week**.
+- Removing a store sends its items back to be sorted.
+
+**The list**
+- **One list per store**, grouped by aisle in store order.
+- **Buy at any store** is a clearly marked box shown on every store's list.
+- **Everything** shows all the stores at once.
+- **Checking off:** a check mark is one record per week and item, so checking it on one list checks it everywhere. Check marks are saved on the phone, so they stay put while she shops and if the app is closed.
+- **I already have this** takes an item off this week's list. It shows under "Already have" with **Put back**.
+- Tapping an item shows which meals need it.
+- **Copy … as text** copies the store's remaining items, plus the any-store items, grouped by aisle, ready to paste into a message or note.
 
 ### Barcode scanning (phase 5)
 - **Open Food Facts only** (free, no key). USDA's branded-food data needs an API key, which cannot be hidden in a public static site, so it is left out.

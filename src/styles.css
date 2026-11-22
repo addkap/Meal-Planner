@@ -161,3 +161,29 @@ details.card:not([open]) > summary::after { content: '▸'; }
 .swap-row { display: block; width: 100%; text-align: left; background: #fff; border: 2px solid var(--line); border-radius: 12px; padding: 10px 12px; margin: 8px 0; cursor: pointer; }
 .swap-note { display: block; margin-top: 6px; color: var(--warn-text); background: var(--warn-bg); border-radius: 8px; padding: 4px 8px; font-size: 16px; }
 .meal-main.static { cursor: default; }
+
+/* ---- groceries ---- */
+.store-section { margin: 14px 0; }
+.store-section > h2 { border-bottom: 3px solid var(--sky); padding-bottom: 4px; }
+.any-box { background: var(--wash); border: 3px solid var(--sky); border-radius: 16px; padding: 12px 14px; margin: 16px 0; }
+.any-box > h2 { color: var(--blue); margin-bottom: 2px; }
+.aisle h3 { font-size: 18px; font-family: inherit; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 14px 0 4px; }
+.item { background: #fff; border: 2px solid var(--line); border-radius: 12px; margin: 6px 0; }
+.item-main { display: flex; align-items: stretch; }
+.check { flex: none; width: 56px; min-height: 56px; margin: 6px; border-radius: 10px; border: 3px solid var(--blue); background: #fff; color: #fff; font-size: 30px; font-weight: 800; cursor: pointer; }
+.check.on { background: var(--blue); }
+.item-text { flex: 1; display: flex; flex-direction: column; justify-content: center; text-align: left; background: none; border: 0; padding: 8px 10px 8px 4px; cursor: pointer; }
+.item-name { font-weight: 600; }
+.item.checked .item-name { text-decoration: line-through; color: var(--muted); }
+.item-more { padding: 0 12px 10px; border-top: 1px solid #e3eef3; }
+.sort-card { border-color: var(--sky); border-width: 3px; }
+.sort-row { padding: 10px 0; border-bottom: 1px solid #e3eef3; }
+.sort-name { display: block; font-weight: 600; margin-bottom: 6px; }
+.sort-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip.any { border-style: dashed; }
+.store-edit { padding: 8px 0; border-bottom: 1px solid #e3eef3; }
+.store-name { font-weight: 700; }
+.have-row { padding: 6px 0; }
+.btn.danger { color: var(--err); border-color: var(--err); }
+.move-store { margin: 8px 0; }
+.bulk { background: var(--wash); border-radius: 12px; padding: 8px 10px; margin: 8px 0; }

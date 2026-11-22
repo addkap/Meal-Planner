@@ -25,9 +25,9 @@ export const FOOD_KEYS = {
   // ---------------------------------------------------------------- vegetables
   spinach: k(168462, 'Spinach, fresh', 'produce', { bag: 142 }),
   kale: k(168421, 'Kale, fresh', 'produce', { bunch: 200 }),
-  arugula: k(169387, 'Arugula', 'produce'),
+  arugula: k(169387, 'Arugula', 'produce', { container: 142 }), // 5-oz clamshell
   romaine: k(169247, 'Romaine lettuce', 'produce', { head: 626 }),
-  greens: k(169249, 'Mixed salad greens', 'produce'),
+  greens: k(169249, 'Mixed salad greens', 'produce', { container: 142 }),
   cabbage: k(169975, 'Green cabbage', 'produce'),
   red_cabbage: k(169977, 'Red cabbage', 'produce'),
   broccoli: k(170379, 'Broccoli, fresh', 'produce', { head: 450 }),
@@ -39,7 +39,7 @@ export const FOOD_KEYS = {
   onion: k(170000, 'Onion', 'produce'),
   red_onion: k(170000, 'Red onion', 'produce'),
   shallot: k(170499, 'Shallot', 'produce', { medium: 30 }),
-  garlic: k(169230, 'Garlic', 'produce'),
+  garlic: k(169230, 'Garlic', 'produce', { head: 40 }), // about 10 cloves
   carrot: k(170393, 'Carrots', 'produce'),
   celery: k(169988, 'Celery', 'produce', { each: 40, stalk: 40 }),
   cucumber: k(168409, 'Cucumber', 'produce', { each: 250 }),
@@ -58,12 +58,13 @@ export const FOOD_KEYS = {
   scallion: k(170005, 'Green onions', 'produce'),
   parsley: k(170416, 'Fresh parsley', 'produce', { bunch: 60 }),
   cilantro: k(169997, 'Fresh cilantro', 'produce', { bunch: 50 }),
-  basil: k(172232, 'Fresh basil', 'produce'),
-  dill: k(172233, 'Fresh dill', 'produce'),
-  mint: k(173475, 'Fresh mint', 'produce'),
+  basil: k(172232, 'Fresh basil', 'produce', { bunch: 25 }),
+  dill: k(172233, 'Fresh dill', 'produce', { bunch: 25 }),
+  mint: k(173475, 'Fresh mint', 'produce', { bunch: 25 }),
   ginger: k(169231, 'Fresh ginger', 'produce'),
   avocado: k(171705, 'Avocado', 'produce'),
   lemon: k(167746, 'Lemon', 'produce'),
+  lime: k(168155, 'Lime', 'produce'),
   lemon_juice: k(167747, 'Lemon juice', 'produce'),
   lemon_zest: k(167749, 'Lemon zest', 'produce'),
   lime_juice: k(168156, 'Lime juice', 'produce'),
@@ -107,14 +108,14 @@ export const FOOD_KEYS = {
   cornmeal: k(169697, 'Whole-grain cornmeal (polenta), dry', 'grains-pasta'),
   ww_flour: k(168893, 'Whole-wheat flour', 'baking'),
   wild_rice: k(169726, 'Wild rice, dry', 'grains-pasta'),
-  ww_bread: k(172688, 'Whole-wheat bread', 'bakery', { slice: 32 }),
-  multigrain_bread: k(168013, 'Multigrain bread', 'bakery'),
-  rye_bread: k(172684, 'Rye bread', 'bakery', { slice: 32 }),
-  sourdough: k(172675, 'Sourdough bread', 'bakery', { slice: 50 }),
-  ww_pita: k(174916, 'Whole-wheat pita', 'bakery'),
-  tortilla: k(175037, 'Flour tortilla (8 inch)', 'bakery'),
-  corn_tortilla: k(175036, 'Corn tortilla', 'bakery'),
-  english_muffin: k(174093, 'Whole-grain English muffin', 'bakery'),
+  ww_bread: k(172688, 'Whole-wheat bread', 'bakery', { slice: 32, loaf: 640 }),
+  multigrain_bread: k(168013, 'Multigrain bread', 'bakery', { loaf: 680 }),
+  rye_bread: k(172684, 'Rye bread', 'bakery', { slice: 32, loaf: 510 }),
+  sourdough: k(172675, 'Sourdough bread', 'bakery', { slice: 50, loaf: 680 }),
+  ww_pita: k(174916, 'Whole-wheat pita', 'bakery', { package: 384 }), // 6 pitas
+  tortilla: k(175037, 'Flour tortilla (8 inch)', 'bakery', { package: 392 }), // 8 tortillas
+  corn_tortilla: k(175036, 'Corn tortilla', 'bakery', { package: 312 }), // 12 tortillas
+  english_muffin: k(174093, 'Whole-grain English muffin', 'bakery', { package: 396 }), // 6 muffins
   ww_crackers: k(172749, 'Whole-wheat crackers', 'snacks', { each: 4.5, cracker: 4.5 }),
   popcorn: k(170246, 'Popcorn, air-popped', 'snacks'),
 
@@ -148,23 +149,23 @@ export const FOOD_KEYS = {
   almond_butter: k(168588, 'Almond butter', 'oils-condiments'),
 
   // ---------------------------------------------------------------- dairy and eggs
-  egg: k(171287, 'Eggs', 'dairy-eggs'),
+  egg: k(171287, 'Eggs', 'dairy-eggs', { dozen: 600 }), // a dozen large eggs
   egg_white: k(172183, 'Egg whites', 'dairy-eggs'),
-  greek_yogurt: k(170894, 'Plain Greek yogurt, nonfat', 'dairy-eggs', { cup: 227, tbsp: 14 }),
-  greek_yogurt_2: k(170903, 'Plain Greek yogurt, low-fat', 'dairy-eggs', { cup: 227, tbsp: 14 }),
-  yogurt: k(170886, 'Plain yogurt, low-fat', 'dairy-eggs'),
-  feta: k(173420, 'Feta cheese', 'dairy-eggs'),
-  parmesan: k(171247, 'Parmesan cheese, grated', 'dairy-eggs'),
+  greek_yogurt: k(170894, 'Plain Greek yogurt, nonfat', 'dairy-eggs', { tub: 907, cup: 227, tbsp: 14 }), // 32-oz tub
+  greek_yogurt_2: k(170903, 'Plain Greek yogurt, low-fat', 'dairy-eggs', { tub: 907, cup: 227, tbsp: 14 }),
+  yogurt: k(170886, 'Plain yogurt, low-fat', 'dairy-eggs', { tub: 907 }),
+  feta: k(173420, 'Feta cheese', 'dairy-eggs', { container: 170 }), // 6-oz crumbles
+  parmesan: k(171247, 'Parmesan cheese, grated', 'dairy-eggs', { container: 142 }), // 5 oz
   mozzarella: k(170847, 'Mozzarella, part-skim', 'dairy-eggs', { cup: 113 }),
-  ricotta: k(171248, 'Ricotta, part-skim', 'dairy-eggs'),
-  milk: k(171267, 'Milk, 2%', 'dairy-eggs'),
-  cottage_cheese: k(172182, 'Cottage cheese, 2%', 'dairy-eggs'),
+  ricotta: k(171248, 'Ricotta, part-skim', 'dairy-eggs', { tub: 425 }), // 15 oz
+  milk: k(171267, 'Milk, 2%', 'dairy-eggs', { 'half-gallon': 1950 }),
+  cottage_cheese: k(172182, 'Cottage cheese, 2%', 'dairy-eggs', { tub: 454 }), // 16 oz
   goat_cheese: k(173435, 'Goat cheese', 'dairy-eggs', { tbsp: 14, cup: 112 }),
-  kefir: k(170904, 'Plain kefir, low-fat', 'dairy-eggs'),
+  kefir: k(170904, 'Plain kefir, low-fat', 'dairy-eggs', { bottle: 946 }),
   butter: k(173430, 'Butter, unsalted', 'dairy-eggs'),
   cheddar: k(171292, 'Cheddar, reduced-fat', 'dairy-eggs', { cup: 113 }),
-  soymilk: k(172456, 'Soy milk', 'dairy-eggs'),
-  almond_milk: k(174832, 'Almond milk, unsweetened', 'dairy-eggs'),
+  soymilk: k(172456, 'Soy milk', 'dairy-eggs', { 'half-gallon': 1950 }),
+  almond_milk: k(174832, 'Almond milk, unsweetened', 'dairy-eggs', { 'half-gallon': 1890 }),
 
   // ---------------------------------------------------------------- fish and seafood (raw weights)
   salmon: k(175167, 'Salmon fillet', 'meat-seafood'),
@@ -196,8 +197,8 @@ export const FOOD_KEYS = {
   marinara: k(171597, 'Marinara sauce, low sodium', 'canned-jarred', { jar: 680 }),
   roasted_peppers: k(168546, 'Roasted red peppers, jarred', 'canned-jarred', { jar: 340 }),
   artichokes: k(168387, 'Artichoke hearts', 'frozen'),
-  olives: k(169094, 'Black olives', 'canned-jarred'),
-  green_olives: k(169096, 'Green olives', 'canned-jarred'),
+  olives: k(169094, 'Black olives', 'canned-jarred', { can: 170 }), // 6-oz can, drained
+  green_olives: k(169096, 'Green olives', 'canned-jarred', { jar: 170 }),
   capers: k(172238, 'Capers', 'canned-jarred'),
   pesto: k(171579, 'Basil pesto', 'canned-jarred'),
   salsa: k(174524, 'Salsa', 'canned-jarred'),
