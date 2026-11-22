@@ -19,6 +19,10 @@ export interface AppData {
   prefs: Map<string, RecipePref>;
   batches: Batch[];
   batchInfo: BatchInfo[];
+  /** Ids of her own recipes (listed under "My recipes"; batch-only ones are not). */
+  myIds: Set<string>;
+  /** Recipes typed in only for a batch: not listed and never planned. */
+  hiddenIds: Set<string>;
 }
 
 const Ctx = createContext<AppData | null>(null);
@@ -47,19 +51,27 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     foods.setCustomFoods(customFoods);
     const settings: Settings = settingsRow ? { ...DEFAULT_SETTINGS, ...settingsRow, rules: { ...DEFAULT_SETTINGS.rules, ...settingsRow.rules } } : DEFAULT_SETTINGS;
     const myLive = mine.filter((r) => !r.deletedAt);
+    const listed = myLive.filter((r) => !r.hidden); // batch-only recipes are not planned or listed
     const all: Recipe[] = [...BUILTIN_RECIPES, ...myLive];
+    // Deleted recipes of hers stay readable for past days she logged them, but are not planned or listed.
+    const everything: Recipe[] = [...BUILTIN_RECIPES, ...mine];
     const prefs = new Map(prefList.filter((p) => !p.deletedAt).map((p) => [p.id, p]));
-    const pool = buildPool(all, foods, prefs, new Set(myLive.map((r) => r.id)));
+    const myIds = new Set(listed.map((r) => r.id));
+    // Batch-only recipes stay in the pool (batch meals need their nutrition) but are never picked by the planner.
+    const hiddenIds = new Set(myLive.filter((r) => r.hidden).map((r) => r.id));
+    const pool = buildPool(all, foods, prefs, myIds).map((p) => (hiddenIds.has(p.id) ? { ...p, weight: 0 } : p));
     const liveBatches = batches.filter((b) => !b.deletedAt);
     return {
       foods,
       settings,
-      recipes: new Map(all.map((r) => [r.id, r])),
+      recipes: new Map(everything.map((r) => [r.id, r])),
       pool,
       poolById: new Map(pool.map((p) => [p.id, p])),
       prefs,
       batches: liveBatches,
       batchInfo: liveBatches.map((b) => ({ id: b.id, recipeId: b.recipeId, cookedOn: b.cookedOn, cooked: b.cooked })),
+      myIds,
+      hiddenIds,
     };
   }, [foods, settingsRow, prefList, mine, customFoods, batches]);
 

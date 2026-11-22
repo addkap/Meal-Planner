@@ -11,7 +11,11 @@ export interface MealRef { weekStart: string; date: string; slot: MealSlot }
 
 export type Route =
   | { name: 'recipe'; recipeId: string; meal?: MealRef }
-  | { name: 'log'; date: string; slot: MealSlot; editId?: string };
+  | { name: 'log'; date: string; slot: MealSlot; editId?: string }
+  | { name: 'batches' }
+  | { name: 'batch-new' }
+  | { name: 'batch-plan'; batchId: string; weekStart?: string }
+  | { name: 'recipe-edit'; id?: string };
 
 export interface Nav {
   tab: Tab;

@@ -96,6 +96,8 @@ export interface Recipe {
 /** A recipe she entered herself. Synced. */
 export interface MyRecipe extends Rec, Recipe {
   source: 'mine';
+  /** Typed in only for a batch and not (yet) saved to "My recipes": not planned, not listed. */
+  hidden?: boolean;
 }
 
 export type Feedback = 'more' | 'less' | 'never';
@@ -157,8 +159,10 @@ export interface Batch extends Rec {
   frozen: number; // set aside to freeze (not used by this week's plan)
   cookedOn: string; // YYYY-MM-DD (or the planned cooking day)
   cooked: boolean; // false = planned; its groceries go on the list
-  /** Servings used so far (by eating a batch meal or logging it). */
-  used: number;
+  /** She said she is done with it (eaten up or thrown out); it stops showing as available. */
+  finished?: boolean;
+  // Servings used are not stored: they are counted from the daily log (see src/lib/batch.ts),
+  // so un-checking a meal gives the serving back automatically.
 }
 
 // ---------------------------------------------------------------- daily log

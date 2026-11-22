@@ -2,7 +2,7 @@
 import { db } from './db';
 import { DEFAULT_SETTINGS } from './lib/defaults';
 import { newId } from './lib/ids';
-import type { CustomFood, Feedback, GroceryMark, LogEntry, MealSlot, PlannedMeal, RecipePref, Settings, Store, WeekPlan } from './types';
+import type { Batch, CustomFood, Feedback, GroceryMark, LogEntry, MyRecipe, PlannedMeal, RecipePref, Settings, Store, WeekPlan } from './types';
 
 const now = () => Date.now();
 
@@ -72,12 +72,16 @@ export async function setMark(weekStart: string, itemKey: string, patch: Partial
 
 // ---------------------------------------------------------------- daily log
 
-/** The one log entry for "I ate this" on a planned meal (one per day and meal). */
-export const plannedEntryId = (date: string, slot: MealSlot) => `${date}|${slot}|planned`;
+/**
+ * The log entry for "I ate this" on a planned meal. It names the exact meal (recipe, batch or her own), so if the
+ * plan changes after she checked a meal off, the old entry stays as what she really ate and the new meal is unchecked.
+ */
+export const plannedEntryId = (date: string, meal: Pick<PlannedMeal, 'slot' | 'recipeId' | 'batchId' | 'custom'>) =>
+  `${date}|${meal.slot}|planned|${meal.batchId ?? meal.recipeId ?? `own:${meal.custom?.name ?? ''}`}`;
 
 /** Check off (qty = servings eaten) or un-check (null) a planned meal. */
 export async function setPlannedEaten(date: string, meal: PlannedMeal, label: string, qty: number | null): Promise<void> {
-  const id = plannedEntryId(date, meal.slot);
+  const id = plannedEntryId(date, meal);
   const cur = await db.logs.get(id);
   if (qty === null) {
     if (cur) await db.logs.put({ ...cur, deletedAt: now(), updatedAt: now() });
@@ -131,4 +135,28 @@ export async function setDayTargets(date: string, t: { kcal?: number; fiber?: nu
     return;
   }
   await db.dayTargets.put({ id: date, ...t, updatedAt: now() });
+}
+
+// ---------------------------------------------------------------- batches and her recipes
+
+export async function saveBatch(b: Omit<Batch, 'updatedAt'>): Promise<void> {
+  const next: Batch = { ...b, updatedAt: now() };
+  delete next.deletedAt;
+  await db.batches.put(next);
+}
+
+export async function updateBatch(id: string, patch: Partial<Batch>): Promise<void> {
+  const cur = await db.batches.get(id);
+  if (cur) await db.batches.put({ ...cur, ...patch, id, updatedAt: now() });
+}
+
+export async function saveMyRecipe(r: MyRecipe): Promise<void> {
+  const next = { ...r, updatedAt: now() };
+  delete next.deletedAt;
+  await db.myRecipes.put(next);
+}
+
+export async function deleteMyRecipe(id: string): Promise<void> {
+  const cur = await db.myRecipes.get(id);
+  if (cur) await db.myRecipes.put({ ...cur, deletedAt: now(), updatedAt: now() });
 }

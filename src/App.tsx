@@ -4,10 +4,12 @@ import { NavCtx, TABS, type Nav, type Route, type Tab } from './nav';
 import PlanPage from './pages/PlanPage';
 import RecipePage from './pages/RecipePage';
 import RecipesPage from './pages/RecipesPage';
-import ComingSoon from './pages/ComingSoon';
 import GroceriesPage from './pages/GroceriesPage';
 import TodayPage from './pages/TodayPage';
 import LogFoodPage from './pages/LogFoodPage';
+import MorePage from './pages/MorePage';
+import RecipeEditorPage from './pages/RecipeEditorPage';
+import { BatchesPage, BatchNewPage, BatchPlanPage } from './pages/BatchPages';
 
 /** True when the phone has internet. Everything works either way. */
 function useOnline(): boolean {
@@ -48,13 +50,21 @@ export default function App() {
             <RecipePage key={top.recipeId + (top.meal?.date ?? '') + (top.meal?.slot ?? '')} recipeId={top.recipeId} meal={top.meal} />
           ) : top?.name === 'log' ? (
             <LogFoodPage key={top.date + top.slot + (top.editId ?? '')} date={top.date} slot={top.slot} editId={top.editId} />
+          ) : top?.name === 'batches' ? (
+            <BatchesPage />
+          ) : top?.name === 'batch-new' ? (
+            <BatchNewPage />
+          ) : top?.name === 'batch-plan' ? (
+            <BatchPlanPage key={top.batchId + (top.weekStart ?? '')} batchId={top.batchId} weekStart={top.weekStart} />
+          ) : top?.name === 'recipe-edit' ? (
+            <RecipeEditorPage key={top.id ?? 'new'} id={top.id} />
           ) : (
             <>
               {tab === 'Plan' && <PlanPage />}
               {tab === 'Groceries' && <GroceriesPage />}
               {tab === 'Today' && <TodayPage />}
               {tab === 'Recipes' && <RecipesPage />}
-              {tab === 'More' && <ComingSoon title="More" phase={7} text="Weight tracker and Settings." />}
+              {tab === 'More' && <MorePage />}
             </>
           )}
         </AppDataProvider>

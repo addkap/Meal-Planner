@@ -10,6 +10,7 @@ import { consistentFlags, dailyTargets } from '../lib/dri';
 import { NUTRIENT_INFO } from '../lib/nutrients';
 import { generateWeek, isFixed, regenerateDay, regenerateWeek, retuneDay, swapMeal, type DaySetup } from '../lib/planner';
 import { planNutrition } from '../lib/planNutrition';
+import { batchStatus, batchWarning, statusText } from '../lib/batch';
 import { formatQty } from '../lib/units';
 import NutritionPanel from '../components/NutritionPanel';
 import SwapMenu from '../components/SwapMenu';
@@ -176,6 +177,8 @@ function WeekView({ plan, onEditSetup }: { plan: WeekPlan; onEditSetup: () => vo
           <button className="btn primary big" onClick={() => void savePlan({ ...plan, finalized: true })}>Use this plan</button>
         </div>
       )}
+
+      <BatchBar weekStart={plan.weekStart} />
 
       {(plan.warnings ?? []).length > 0 && (
         <div className="card warn">
@@ -349,3 +352,30 @@ function NutritionReview({ plan, open }: { plan: WeekPlan; open: boolean }) {
   );
 }
 
+
+/** "I made a batch" and any batch running low. */
+function BatchBar({ weekStart }: { weekStart: string }) {
+  const { batches, recipes } = useAppData();
+  const { open } = useNav();
+  const logs = useLiveQuery(() => db.logs.toArray(), []);
+  const plans = useLiveQuery(() => db.plans.toArray(), []);
+  if (!logs || !plans) return null;
+  const today = todayLocal();
+  const active = batches.filter((b) => !b.finished).map((b) => ({ b, s: batchStatus(b, logs, plans, today), name: recipes.get(b.recipeId)?.name ?? 'Batch' }));
+  const warnings = active.map((x) => batchWarning(x.name, x.s)).filter((w): w is string => !!w);
+  // Servings not planned anywhere yet, for a batch not already in this week's plan.
+  const inThisWeek = (id: string) => plans.some((p) => p.id === weekStart && !p.deletedAt && p.days.some((d) => d.meals.some((m) => m.batchId === id)));
+  const leftovers = active.filter((x) => x.b.cooked && x.s.left - x.s.plannedAhead >= 1 && !inThisWeek(x.b.id));
+  return (
+    <div className="batchbar">
+      <div className="btns">
+        <button className="btn" onClick={() => open({ name: 'batch-new' })}>I made a batch</button>
+        {active.length > 0 && <button className="btn" onClick={() => open({ name: 'batches' })}>Your batches ({active.length})</button>}
+      </div>
+      {warnings.map((w) => <p key={w} className="warn-line">{w}</p>)}
+      {leftovers.map((x) => (
+        <p key={x.b.id} className="info-line">You have {Math.floor(x.s.left - x.s.plannedAhead)} unplanned {Math.floor(x.s.left - x.s.plannedAhead) === 1 ? 'serving' : 'servings'} of {x.name.toLowerCase()} ({statusText(x.s)}). <button className="linkish" onClick={() => open({ name: 'batch-plan', batchId: x.b.id, weekStart })}>Use them this week</button></p>
+      ))}
+    </div>
+  );
+}

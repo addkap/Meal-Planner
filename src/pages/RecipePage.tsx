@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { useAppData } from '../AppData';
 import { useNav, type MealRef } from '../nav';
-import { savePlan, setFavorite, setFeedback } from '../store';
+import { deleteMyRecipe, savePlan, setFavorite, setFeedback } from '../store';
 import { explainPlacement } from '../lib/pool';
 import { scaleIngredients, servingNutrition, recipeNutrition } from '../lib/recipes';
 import { formatAmount, formatQty, ingredientText } from '../lib/units';
@@ -26,8 +26,9 @@ const FEEDBACK: { value: Feedback; label: string }[] = [
 ];
 
 export default function RecipePage({ recipeId, meal }: { recipeId: string; meal?: MealRef }) {
-  const { recipes, poolById, foods, settings, prefs } = useAppData();
-  const { back } = useNav();
+  const { recipes, poolById, foods, settings, prefs, myIds } = useAppData();
+  const { back, open } = useNav();
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const plan = useLiveQuery(async () => (meal ? (await db.plans.get(meal.weekStart)) ?? null : null), [meal?.weekStart]);
   const planned = meal && plan ? plan.days.find((d) => d.date === meal.date)?.meals.find((m) => m.slot === meal.slot) : undefined;
   const [localPeople, setLocalPeople] = useState(settings.people);
@@ -111,6 +112,22 @@ export default function RecipePage({ recipeId, meal }: { recipeId: string; meal?
         <p className="muted small">Tap a chosen button again to undo. "Use more" picks it about twice as often, "Use less" about half as often. Favorites come up more often too.</p>
         {why.map((w) => <p key={w} className="warn-line">{w}</p>)}
       </section>
+
+      {myIds.has(recipeId) && (
+        <section className="card">
+          <h2>Your recipe</h2>
+          <button className="btn" onClick={() => open({ name: 'recipe-edit', id: recipeId })}>Edit this recipe</button>
+          {confirmDelete ? (
+            <>
+              <p>Delete <b>{recipe.name}</b>? It will no longer be planned or listed. Days you already logged it keep their nutrition.</p>
+              <div className="btns">
+                <button className="btn danger" onClick={() => void deleteMyRecipe(recipeId).then(back)}>Delete</button>
+                <button className="btn" onClick={() => setConfirmDelete(false)}>Cancel</button>
+              </div>
+            </>
+          ) : <button className="btn danger" onClick={() => setConfirmDelete(true)}>Delete this recipe</button>}
+        </section>
+      )}
     </article>
   );
 }

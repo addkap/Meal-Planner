@@ -8,6 +8,8 @@ import { useNav } from '../nav';
 import { addLog, findFoodByBarcode, saveCustomFood, updateLog } from '../store';
 import { newId } from '../lib/ids';
 import { entryTotals } from '../lib/log';
+import { batchStatus, statusText } from '../lib/batch';
+import { todayLocal } from '../lib/dates';
 import { cleanBarcode, listedCount, lookupBarcode, productToFood, searchProducts, type OffProduct } from '../lib/openFoodFacts';
 import { makeIndex } from '../lib/search';
 import { formatQty, toGrams, unitsFor } from '../lib/units';
@@ -17,7 +19,7 @@ import NutritionPanel from '../components/NutritionPanel';
 import { BackBar, kcalText, Segmented } from '../components/ui';
 import type { CustomFood, Food, LogEntry, MealSlot, Recipe } from '../types';
 
-type Pick = { type: 'food'; food: Food } | { type: 'recipe'; recipe: Recipe };
+type Pick = { type: 'food'; food: Food } | { type: 'recipe'; recipe: Recipe } | { type: 'batch'; recipe: Recipe; batchId: string };
 type Step =
   | { s: 'search' }
   | { s: 'amount'; pick: Pick; note?: string }
@@ -66,7 +68,8 @@ export default function LogFoodPage({ date, slot, editId }: { date: string; slot
   if (editId && editing && step.s === 'search') {
     const pick: Pick | null = editing.kind === 'food' && editing.food && foods.get(editing.food)
       ? { type: 'food', food: foods.get(editing.food)! }
-      : editing.recipeId && recipes.get(editing.recipeId) ? { type: 'recipe', recipe: recipes.get(editing.recipeId)! } : null;
+      : editing.batchId && editing.recipeId && recipes.get(editing.recipeId) ? { type: 'batch', recipe: recipes.get(editing.recipeId)!, batchId: editing.batchId }
+        : editing.recipeId && recipes.get(editing.recipeId) ? { type: 'recipe', recipe: recipes.get(editing.recipeId)! } : null;
     if (pick) setStep({ s: 'amount', pick });
   }
 
@@ -118,7 +121,14 @@ function customAsFood(c: CustomFood): Food {
 // ---------------------------------------------------------------- search
 
 function SearchStep({ customFoods, onPick, onScan, onTypeBarcode, onLabel, onOnline }: { customFoods: CustomFood[]; onPick: (p: Pick) => void; onScan: () => void; onTypeBarcode: () => void; onLabel: () => void; onOnline: () => void }) {
-  const { foods, recipes } = useAppData();
+  const { foods, recipes, batches, hiddenIds } = useAppData();
+  const logs = useLiveQuery(() => db.logs.toArray(), []);
+  const plans = useLiveQuery(() => db.plans.toArray(), []);
+  // Her cooked batches with servings left, shown first so she can log one eaten outside the plan.
+  const batchRows = (logs && plans ? batches : [])
+    .filter((b) => b.cooked && !b.finished)
+    .map((b) => ({ b, r: recipes.get(b.recipeId), s: batchStatus(b, logs ?? [], plans ?? [], todayLocal()) }))
+    .filter((x) => x.r && x.s.left > 0);
   const [q, setQ] = useState('');
   type Row = { id: string; name: string; boost: number; sub: string; pick: Pick };
   const search = useMemo(() => {
@@ -127,10 +137,10 @@ function SearchStep({ customFoods, onPick, onScan, onTypeBarcode, onLabel, onOnl
       const f = customAsFood(c);
       rows.push({ id: f.ref, name: f.name, boost: 3, sub: c.source === 'scanned' ? 'Scanned' : 'Your food', pick: { type: 'food', food: f } });
     }
-    for (const r of recipes.values()) rows.push({ id: r.id, name: r.name, boost: -2, sub: 'Recipe, per serving', pick: { type: 'recipe', recipe: r } }); // plain foods first
+    for (const r of recipes.values()) if (!hiddenIds.has(r.id) && !(r as { deletedAt?: number }).deletedAt) rows.push({ id: r.id, name: r.name, boost: -2, sub: 'Recipe, per serving', pick: { type: 'recipe', recipe: r } }); // plain foods first
     for (const f of foods.usda.values()) rows.push({ id: f.ref, name: f.name, boost: 0, sub: f.group, pick: { type: 'food', food: f } });
     return makeIndex(rows);
-  }, [customFoods, foods, recipes]);
+  }, [customFoods, foods, recipes, hiddenIds]);
   const results = search(q, 40);
   return (
     <>
@@ -139,6 +149,17 @@ function SearchStep({ customFoods, onPick, onScan, onTypeBarcode, onLabel, onOnl
         <button className="btn primary" onClick={onScan}>Scan barcode</button>
         <button className="btn" onClick={onTypeBarcode}>Type a barcode</button>
       </div>
+      {batchRows.length > 0 && !q.trim() && (
+        <>
+          <p className="muted">From your batches:</p>
+          {batchRows.map(({ b, r, s }) => (
+            <button key={b.id} className="recipe-row" onClick={() => onPick({ type: 'batch', recipe: r!, batchId: b.id })}>
+              <span className="meal-name">{r!.name}</span>
+              <span className="muted small">Your batch · {statusText(s)}</span>
+            </button>
+          ))}
+        </>
+      )}
       <input className="search" type="search" placeholder="Search foods (e.g. banana, cheddar)" value={q} onChange={(e) => setQ(e.target.value)} autoFocus aria-label="Search foods" />
       {results.map((r) => (
         <button key={r.id} className="recipe-row" onClick={() => onPick(r.pick)}>
@@ -218,10 +239,12 @@ function AmountStep({ pick, note, date, slot, existing, onFix, onDone }: { pick:
   const q = Number(qty);
   const grams = food ? toGrams(food, q, unit) : null;
   const entry: LogEntry = {
-    id: 'preview', updatedAt: 0, date, slot: where, qty: q, label: food ? food.name : pick.type === 'recipe' ? pick.recipe.name : '',
-    ...(food ? { kind: 'food' as const, food: food.ref, unit, grams: grams ?? undefined } : { kind: 'recipe' as const, recipeId: pick.type === 'recipe' ? pick.recipe.id : undefined }),
+    id: 'preview', updatedAt: 0, date, slot: where, qty: q, label: pick.type === 'food' ? pick.food.name : pick.recipe.name,
+    ...(food ? { kind: 'food' as const, food: food.ref, unit, grams: grams ?? undefined }
+      : pick.type === 'batch' ? { kind: 'batch' as const, batchId: pick.batchId, recipeId: pick.recipe.id }
+        : { kind: 'recipe' as const, recipeId: pick.type === 'recipe' ? pick.recipe.id : undefined }),
   };
-  const totals = entryTotals(entry, { foods, recipes });
+  const totals = entryTotals(entry, { foods, recipes, batchRecipe: pick.type === 'batch' ? new Map([[pick.batchId, pick.recipe.id]]) : undefined });
   const valid = q > 0 && (!food || grams !== null);
 
   async function save() {

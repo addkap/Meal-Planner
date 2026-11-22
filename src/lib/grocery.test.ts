@@ -88,7 +88,7 @@ describe('the week’s list', () => {
     expect(list.find((i) => i.key === 'key:water')).toBeUndefined();
   });
   it('adds a batch she has not cooked yet, scaled to the batch size; a cooked batch adds nothing', () => {
-    const planned: Batch = { id: 'b1', updatedAt: 1, recipeId: 'd-turkey-and-bean-chili', servingsMade: 12, frozen: 0, cookedOn: '2026-11-25', cooked: false, used: 0 };
+    const planned: Batch = { id: 'b1', updatedAt: 1, recipeId: 'd-turkey-and-bean-chili', servingsMade: 12, frozen: 0, cookedOn: '2026-11-25', cooked: false };
     const withBatch = buildGroceryList(days, recipes, foods, [planned]);
     const turkey = withBatch.find((i) => i.key === 'key:ground_turkey')!;
     expect(turkey.grams).toBeCloseTo(453.592 * (12 / r('d-turkey-and-bean-chili').servings), 0); // 1 lb for 6 -> 2 lb for 12

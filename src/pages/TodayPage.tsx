@@ -8,6 +8,7 @@ import { useNav } from '../nav';
 import { plannedEntryId, removeLog, setDayTargets, setPlannedEaten } from '../store';
 import { addDays, dayName, shortDate, todayLocal, weekStartOf } from '../lib/dates';
 import { entryTotals, summarizeDay, targetsFor } from '../lib/log';
+import { batchStatus } from '../lib/batch';
 import { macroSplit } from '../lib/nutrition';
 import { NUTRIENT_INFO } from '../lib/nutrients';
 import { formatAmount, formatQty } from '../lib/units';
@@ -68,7 +69,8 @@ export default function TodayPage() {
       {SLOTS.map((slot) => {
         const meal = planDay?.meals.find((m) => m.slot === slot);
         const s = sum.slots.find((x) => x.slot === slot)!;
-        const extras = s.entries.filter((e) => e.id !== plannedEntryId(date, slot));
+        const plannedId = meal ? plannedEntryId(date, meal) : '';
+        const extras = s.entries.filter((e) => e.id !== plannedId);
         if (!meal && slot === 'snack' && !extras.length && planDay && !planDay.snack) {
           return (
             <section key={slot} className="slot">
@@ -83,7 +85,7 @@ export default function TodayPage() {
               <h2>{SLOT_LABEL[slot]}</h2>
               {s.totals.kcal.amount > 0 && <span className="muted">{kcalText(s.totals.kcal.amount)} · P {Math.round(s.totals.protein.amount)} · C {Math.round(s.totals.carbs.amount)} · F {Math.round(s.totals.fat.amount)} g</span>}
             </div>
-            {meal && <PlannedRow date={date} meal={meal} entry={live.find((e) => e.id === plannedEntryId(date, slot))} />}
+            {meal && <PlannedRow date={date} meal={meal} entry={live.find((e) => e.id === plannedId)} />}
             {extras.map((e) => <ExtraRow key={e.id} e={e} kcal={entryTotals(e, ctx).kcal.amount} date={date} />)}
             <button className="btn subtle" onClick={() => open({ name: 'log', date, slot })}>+ {meal ? 'Log something else' : `Add ${slot === 'snack' ? 'a snack' : SLOT_LABEL[slot].toLowerCase()}`}</button>
           </section>
@@ -114,7 +116,7 @@ function Progress({ label, value, target, unit, atLeast }: { label: string; valu
 }
 
 function PlannedRow({ date, meal, entry }: { date: string; meal: PlannedMeal; entry?: LogEntry }) {
-  const { poolById, batchInfo } = useAppData();
+  const { poolById, batchInfo, batches } = useAppData();
   const { open } = useNav();
   const [custom, setCustom] = useState<string | null>(null);
   const recipeId = meal.recipeId ?? batchInfo.find((b) => b.id === meal.batchId)?.recipeId;
@@ -125,13 +127,16 @@ function PlannedRow({ date, meal, entry }: { date: string; meal: PlannedMeal; en
   const qty = entry?.qty ?? meal.portion;
   const set = (q: number | null) => void setPlannedEaten(date, meal, name, q);
   const choices = [...new Set([0.5, 1, meal.portion, 1.5])].sort((a, b) => a - b);
+  const logs = useLiveQuery(async (): Promise<LogEntry[]> => (meal.batchId ? db.logs.toArray() : []), [meal.batchId]);
+  const batch = batches.find((b) => b.id === meal.batchId);
+  const batchLeft = batch && logs ? Math.round(batchStatus(batch, logs, [], date).left * 10) / 10 : null;
   return (
     <div className={eaten ? 'logrow eaten' : 'logrow'}>
       <div className="item-main">
         <button className={eaten ? 'check on' : 'check'} role="checkbox" aria-checked={eaten} aria-label={`I ate ${name}`} onClick={() => set(eaten ? null : meal.portion)}>{eaten ? '✓' : ''}</button>
         <div className="item-text static">
           <span className="item-name">{eaten ? '' : 'I ate this: '}{name}</span>
-          <span className="muted small">{meal.batchId ? 'From your batch · ' : ''}{perServing ? kcalText(perServing * qty) : 'calories not entered'} · {formatQty(qty)} {qty <= 1 ? 'serving' : 'servings'}{qty === meal.portion ? ' (as planned)' : ''}</span>
+          <span className="muted small">{meal.batchId ? `From your batch${batchLeft !== null ? ` (${batchLeft} left)` : ''} · ` : ''}{perServing ? kcalText(perServing * qty) : 'calories not entered'} · {formatQty(qty)} {qty <= 1 ? 'serving' : 'servings'}{qty === meal.portion ? ' (as planned)' : ''}</span>
         </div>
         {p && <button className="chip small-chip" onClick={() => open({ name: 'recipe', recipeId: p.id })}>Recipe</button>}
       </div>

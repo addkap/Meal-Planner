@@ -179,8 +179,7 @@ function attemptWeek(input: PlanInput, rng: Rng): DayPlan[] {
   for (const [k, m] of fixedBySlot) {
     const p = recipeOf(m);
     if (!p) continue;
-    if (!m.batchId) state.used.add(p.id);
-    else state.used.add(p.id); // a batch recipe is not also planned as a separate meal
+    state.used.add(p.id); // (a batch recipe is not also planned as a separate meal)
     if (p.cls !== 'plant') count[p.cls]++;
     if (p.eggs) state.eggs++;
     if (p.treat && m.slot === 'snack') { state.treats++; if (p.issues.length) state.sweet++; }
