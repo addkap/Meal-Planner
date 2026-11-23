@@ -280,7 +280,8 @@ describe('her preferences', () => {
     let n = 0;
     for (let i = 0; i < weeks; i++) {
       const res = generateWeek(setupsFor(i), { pool, rules: DEFAULT_RULES }, 9000 + i);
-      n += res.days.flatMap((d) => d.meals).filter((m) => m.recipeId === id).length;
+      // weeks it is in (a repeat to use up leftovers is not her preference at work)
+      if (res.days.some((d) => d.meals.some((m) => m.recipeId === id))) n++;
     }
     return n;
   };

@@ -9,6 +9,7 @@ import { GROCERY_CATEGORIES } from '../lib/categories';
 import { addDays, shortDate, todayLocal, weekStartOf } from '../lib/dates';
 import { ANY_STORE, buildGroceryList, itemLine, listForStore, resolveItems, storeListText, UNASSIGNED, type ItemState } from '../lib/grocery';
 import type { Store } from '../types';
+import { useWeeksBefore } from '../useWeeksBefore';
 
 const EVERYTHING = 'everything';
 
@@ -23,7 +24,10 @@ export default function GroceriesPage() {
   const [view, setView] = useState<string | null>(null);
   const [copied, setCopied] = useState('');
 
-  const items = useMemo(() => (plan && !plan.deletedAt ? buildGroceryList(plan.days, recipes, foods, batches) : []), [plan, recipes, foods, batches]);
+  const before = useWeeksBefore(weekStart);
+  const all = useMemo(() => (plan && !plan.deletedAt ? buildGroceryList(plan.days, recipes, foods, batches, before?.carryIn ?? []) : []), [plan, recipes, foods, batches, before]);
+  const items = all.filter((i) => !i.covered);
+  const covered = all.filter((i) => i.covered);
   if (plan === undefined || !stores || !assignments || !marks) return null;
 
   const liveStores = stores.filter((s) => !s.deletedAt).sort((a, b) => a.order - b.order);
@@ -73,6 +77,16 @@ export default function GroceriesPage() {
           {liveStores.length === 0 && (
             <div className="card">
               <p><b>Add the stores you shop at</b> (at the bottom of this page) to split the list by store. Until then, everything is on one list.</p>
+            </div>
+          )}
+
+          {covered.length > 0 && (
+            <div className="card">
+              <h2>Already open from last week</h2>
+              <p className="muted small">Nothing to buy for these: the plan uses up what is left in packages you opened last week.</p>
+              <ul className="plain-list">
+                {covered.map((i) => <li key={i.key}>{i.fromLastWeek} {i.name.toLowerCase()} <span className="muted small">for {i.uses.map((u) => u.label).join(', ')}</span></li>)}
+              </ul>
             </div>
           )}
 
@@ -198,6 +212,7 @@ function ItemRow({ s, weekStart, stores, storeName }: { s: ItemState; weekStart:
         <button className="item-text" aria-expanded={open} onClick={() => setOpen(!open)}>
           <span className="item-name">{itemLine(item)}</span>
           {item.needed && <span className="muted small">Recipes need {item.needed}</span>}
+          {item.fromLastWeek && <span className="muted small">Plus {item.fromLastWeek} left from last week</span>}
           {s.thisWeekOnly && <span className="muted small">At {storeName(s.storeId)} this week only</span>}
         </button>
       </div>

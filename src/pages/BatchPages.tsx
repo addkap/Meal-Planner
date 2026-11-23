@@ -15,6 +15,7 @@ import { BackBar, EffortBadge, kcalText, Stepper } from '../components/ui';
 import RecipeEditorPage from './RecipeEditorPage';
 import { PLAN_WEEK_KEY } from './PlanPage';
 import type { Batch, MealSlot, WeekPlan } from '../types';
+import { useWeeksBefore } from '../useWeeksBefore';
 
 const SLOT_LABEL: Record<MealSlot, string> = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack' };
 const newSeed = () => Math.floor(Math.random() * 1e9);
@@ -102,6 +103,7 @@ function SlotPicker({ title, batch, available, weekStart: start, from, onDone, c
   const { setTab } = useNav();
   const [weekStart, setWeekStart] = useState(start);
   const plan = useLiveQuery(async () => (await db.plans.get(weekStart)) ?? null, [weekStart]);
+  const before = useWeeksBefore(weekStart);
   const p = poolById.get(batch.recipeId);
   const [chosen, setChosen] = useState<Set<string> | null>(null);
   const [busy, setBusy] = useState(false);
@@ -122,7 +124,7 @@ function SlotPicker({ title, batch, available, weekStart: start, from, onDone, c
       const slots = [...current].map((k) => { const [date, slot] = k.split('|'); return { date, slot: slot as MealSlot }; });
       const placed = placeBatch(plan.days, batch, slots);
       const batches = [...batchInfo.filter((b) => b.id !== batch.id), { id: batch.id, recipeId: batch.recipeId, cookedOn: batch.cookedOn, cooked: batch.cooked }];
-      const res = rebalanceWeek(placed, { pool, rules: settings.rules, batches }, newSeed());
+      const res = rebalanceWeek(placed, { pool, rules: settings.rules, batches, ...before }, newSeed());
       await savePlan({ ...plan, days: res.days, warnings: res.warnings });
     }
     setBusy(false);

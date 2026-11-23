@@ -132,6 +132,8 @@ export interface PlannedMeal {
   people: number; // how many people this meal is cooked for (scales ingredients and groceries)
   /** "Keep": she wants this meal, so new plans and re-balancing leave it alone. Not the same as eating it. */
   locked?: boolean;
+  /** The planner brought this recipe back a second time this week to use up an open package. */
+  usesUp?: boolean;
 }
 
 export interface DayPlan {

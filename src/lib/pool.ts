@@ -5,6 +5,7 @@ import type { DietRules, Effort, MealSlot, ProteinKind, Recipe, RecipePref } fro
 import type { FoodDb } from './foodDb';
 import { dietProfile, dietTags, recipeNutrition, type DietProfile } from './recipes';
 import type { Totals } from './nutrition';
+import { packagedUses, type PackagedUse } from './leftovers';
 
 /** Which of the weekly protein quotas a meal uses. "plant" = no fish, poultry or red meat. */
 export type ProteinClass = 'fish' | 'poultry' | 'red' | 'plant';
@@ -32,6 +33,8 @@ export interface PoolRecipe {
   weight: number;
   mine: boolean;
   favorite: boolean;
+  /** Ingredients bought in packages that spoil once opened (cans, bags, bunches...), per serving. */
+  packaged: PackagedUse[];
 }
 
 export const DEFAULT_RULES: DietRules = {
@@ -111,6 +114,7 @@ export function buildPool(recipes: Recipe[], db: FoodDb, prefs: Map<string, Reci
       weight,
       mine,
       favorite,
+      packaged: packagedUses(recipe, db),
     };
   });
 }

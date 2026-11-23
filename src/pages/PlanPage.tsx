@@ -1,5 +1,5 @@
 // The Plan tab: pick the week, set up each day, generate, review the nutrition, then use the plan.
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { useAppData } from '../AppData';
@@ -8,7 +8,8 @@ import { savePlan } from '../store';
 import { addDays, dayName, shortDate, todayLocal, weekDates, weekStartOf } from '../lib/dates';
 import { consistentFlags, dailyTargets } from '../lib/dri';
 import { NUTRIENT_INFO } from '../lib/nutrients';
-import { generateWeek, isFixed, regenerateDay, regenerateWeek, retuneDay, swapMeal, type DaySetup } from '../lib/planner';
+import { generateWeek, isFixed, mealUses, regenerateDay, regenerateWeek, retuneDay, swapMeal, type DaySetup } from '../lib/planner';
+import { carryOver, packText, tallyWeek, type UsedUp } from '../lib/leftovers';
 import { planNutrition } from '../lib/planNutrition';
 import { batchStatus, batchWarning, statusText } from '../lib/batch';
 import { formatQty } from '../lib/units';
@@ -19,6 +20,7 @@ import type { CustomMeal, DayPlan, Effort, MealSlot, PlannedMeal, WeekPlan } fro
 import type { SwapOption } from '../lib/planner';
 import { MEAL_LABEL, MEAL_ORDER } from '../lib/people';
 import type { PeopleBy } from '../lib/people';
+import { useWeeksBefore } from '../useWeeksBefore';
 
 const SLOT_LABEL: Record<MealSlot, string> = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack' };
 const EFFORT_OPTIONS: { value: Effort; label: string }[] = [
@@ -67,6 +69,7 @@ export default function PlanPage() {
 
 function PlanSetup({ weekStart, existing, onDone, onCancel }: { weekStart: string; existing: WeekPlan | null; onDone: () => void; onCancel?: () => void }) {
   const { settings, pool, batchInfo } = useAppData();
+  const before = useWeeksBefore(weekStart);
   const [weekKcal, setWeekKcal] = useState(String(existing?.days[0]?.kcalTarget ?? settings.kcal));
   const [weekFiber, setWeekFiber] = useState(String(existing?.days[0]?.fiberTarget ?? settings.fiber));
   const [peopleBy, setPeopleBy] = useState<PeopleBy>(() => existing?.days[0]?.peopleBy ?? settings.peopleBy);
@@ -102,7 +105,7 @@ function PlanSetup({ weekStart, existing, onDone, onCancel }: { weekStart: strin
     // Keep meals she locked and batch servings from the plan she already had.
     const fixed = days.map((d) => (existing?.days.find((x) => x.date === d.date)?.meals ?? []).filter(isFixed).filter((m) => m.slot !== 'snack' || d.snack));
     const seed = newSeed();
-    const res = generateWeek(days.map(({ ownTargets: _o, ...d }) => ({ ...d, peopleBy })), { pool, rules: settings.rules, batches: batchInfo }, seed, fixed);
+    const res = generateWeek(days.map(({ ownTargets: _o, ...d }) => ({ ...d, peopleBy })), { pool, rules: settings.rules, batches: batchInfo, ...before }, seed, fixed);
     void savePlan({ id: weekStart, weekStart, days: res.days, finalized: false, seed, warnings: res.warnings }).then(() => {
       setBusy(false);
       onDone();
@@ -175,7 +178,11 @@ function PlanSetup({ weekStart, existing, onDone, onCancel }: { weekStart: strin
 
 function WeekView({ plan, onEditSetup }: { plan: WeekPlan; onEditSetup: () => void }) {
   const { settings, pool, batchInfo } = useAppData();
-  const ctx = { pool, rules: settings.rules, batches: batchInfo };
+  const before = useWeeksBefore(plan.weekStart);
+  const ctx = { pool, rules: settings.rules, batches: batchInfo, ...before };
+  // What each meal uses up from packages opened earlier, and what is still open when the week ends.
+  const tally = useMemo(() => tallyWeek(plan.days, mealUses(pool), before?.carryIn), [plan.days, pool, before]);
+  const stillOpen = carryOver(tally.end, addDays(plan.weekStart, 7)).filter((o) => o.left / o.pkg.g >= SHOW_MIN);
   const save = (days: DayPlan[], warnings?: string[]) => savePlan({ ...plan, days, warnings: warnings ?? plan.warnings });
 
   const updateMeal = (date: string, slot: MealSlot, patch: Partial<PlannedMeal>, retune = false) =>
@@ -211,6 +218,7 @@ function WeekView({ plan, onEditSetup }: { plan: WeekPlan; onEditSetup: () => vo
           day={d}
           days={plan.days}
           weekStart={plan.weekStart}
+          usedUp={tally.usedUp}
           onToggleLock={(slot, locked) => void updateMeal(d.date, slot, { locked })}
           onSurprise={(slot) => {
             // a fresh pick for this slot (if she had typed something in, the slot opens up again first)
@@ -218,11 +226,19 @@ function WeekView({ plan, onEditSetup }: { plan: WeekPlan; onEditSetup: () => vo
             const r = swapMeal(open, d.date, slot, ctx, newSeed());
             void save(r.days);
           }}
-          onPickRecipe={(slot, o: SwapOption) => void updateMeal(d.date, slot, { recipeId: o.recipe.id, custom: undefined, batchId: undefined, portion: o.portion, locked: true }, true)}
-          onCustom={(slot, c: CustomMeal) => void updateMeal(d.date, slot, { recipeId: undefined, batchId: undefined, custom: c, portion: 1, locked: true }, true)}
+          onPickRecipe={(slot, o: SwapOption) => void updateMeal(d.date, slot, { recipeId: o.recipe.id, custom: undefined, batchId: undefined, usesUp: undefined, portion: o.portion, locked: true }, true)}
+          onCustom={(slot, c: CustomMeal) => void updateMeal(d.date, slot, { recipeId: undefined, batchId: undefined, usesUp: undefined, custom: c, portion: 1, locked: true }, true)}
           onRegenerateDay={() => { const r = regenerateDay(plan.days, d.date, ctx, newSeed()); void save(r.days); }}
         />
       ))}
+
+      {stillOpen.length > 0 && (
+        <div className="card">
+          <h2>Still open at the end of the week</h2>
+          <ul className="plain-list">{stillOpen.map((o) => <li key={o.pkg.key}>About {packText(o.left / o.pkg.g, o.pkg.unit)} {shortName(o.pkg.name)}</li>)}</ul>
+          <p className="muted small">Next week's plan starts by using these up, and its grocery list buys less of them.</p>
+        </div>
+      )}
 
       <div className="card">
         <h2>Change the whole week</h2>
@@ -234,10 +250,18 @@ function WeekView({ plan, onEditSetup }: { plan: WeekPlan; onEditSetup: () => vo
   );
 }
 
-function DayCard({ day, days, weekStart, onToggleLock, onSurprise, onPickRecipe, onCustom, onRegenerateDay }: {
+/** Leftovers smaller than this share of a package (a spoonful of yogurt) are not worth a line on screen. */
+const SHOW_MIN = 0.2;
+const shown = (u: UsedUp[] | undefined) => (u ?? []).filter((x) => x.frac >= SHOW_MIN);
+
+/** "Chickpeas, canned, drained" -> "chickpeas" */
+const shortName = (name: string) => name.split(',')[0].toLowerCase();
+
+function DayCard({ day, days, weekStart, usedUp, onToggleLock, onSurprise, onPickRecipe, onCustom, onRegenerateDay }: {
   day: DayPlan;
   days: DayPlan[];
   weekStart: string;
+  usedUp: Map<string, UsedUp[]>;
   onToggleLock: (slot: MealSlot, locked: boolean) => void;
   onSurprise: (slot: MealSlot) => void;
   onPickRecipe: (slot: MealSlot, o: SwapOption) => void;
@@ -305,6 +329,9 @@ function DayCard({ day, days, weekStart, onToggleLock, onSurprise, onPickRecipe,
                 <span>{kcalText(p.kcal * m.portion)}</span>
                 {m.portion !== 1 && <span>{formatQty(m.portion)} servings</span>}
               </span>
+              {shown(usedUp.get(`${day.date}|${m.slot}`)).length > 0 && (
+                <span className="uses-up">Uses up {shown(usedUp.get(`${day.date}|${m.slot}`)).map((u) => `${packText(u.frac, u.pkg.unit)} ${shortName(u.pkg.name)} ${u.openedOn < weekStart ? 'from last week' : `opened ${dayName(u.openedOn, 'short')}`}`).join(', ')}</span>
+              )}
             </button>
             {!m.batchId && actions(m)}
             {menu(m)}

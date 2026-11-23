@@ -11,6 +11,10 @@
 //     (0.75x to 1.5x, in quarter steps) is tuned to land within 5% of the day's calorie target, and fiber is
 //     checked. The best combination wins; her preferences (Use more / Use less, favorites, her own recipes)
 //     make recipes more or less likely.
+//     While filling, it keeps a running tally of packages that are opened and not finished (½ can of
+//     chickpeas, part of a bag of spinach) and strongly prefers recipes that use them up while they are still
+//     good, including what is left from the week before (leftovers.ts). Any meal may come back on a later day
+//     when that uses up something already open (often what it opened itself).
 //  4. The whole week is checked against every rule (checkWeek). If anything is off, it tries again with a
 //     different random start, and keeps the best. Days that still cannot reach their targets get a warning.
 //
@@ -20,6 +24,8 @@ import type { DayPlan, DietRules, Effort, MealSlot, PlannedMeal } from '../types
 import { makeRng, randInt, weightedPick, type Rng } from './rng';
 import type { PoolRecipe, ProteinClass } from './pool';
 import { peopleFor, type PeopleBy } from './people';
+import { carryOver, cloneOpen, cook, leftoverUse, newLeftover, tallyWeek, type MealUses, type OpenPack, type OpenState } from './leftovers';
+import { addDays } from './dates';
 
 /** Copies whichever people count a day has (per meal, or the older single number). */
 const peopleOf = (d: { people?: number; peopleBy?: PeopleBy }) => (d.peopleBy ? { peopleBy: d.peopleBy } : d.people !== undefined ? { people: d.people } : {});
@@ -38,6 +44,20 @@ const MAX_TREATS = 2;
 /** A snack is at most this many calories per serving (some breakfasts, like egg bites, double as snacks). */
 export const SNACK_MAX_KCAL = 320;
 const MAX_SWEET_TREATS = 1; // her recipes that break the sugar rule
+// Tuned on 200 random weeks and 50 runs of 4 weeks (1 person at breakfast, lunch and snack, 4 at dinner):
+// packages left unfinished went from about 12 to 7 a week (single weeks) and from about 6.7 to 4 a week over
+// runs with carry-over, with no rule broken; with last week's recipes used less, the most common recipe is in
+// fewer weeks than before (56% instead of 62%).
+/** How much more likely a recipe is for each whole package of open leftovers it uses up. */
+export const LEFTOVER_BOOST = 20;
+/** How much less likely a recipe is for each package it opens and leaves unused. */
+export const NEW_OPEN_PENALTY = 3;
+/** A recipe may come back later in the week if that uses up at least this much of an open package. */
+export const REPEAT_MIN = 0.2;
+/** Recipes from last week's plan are this much as likely (so weeks do not look alike). */
+export const RECENT_WEIGHT = 0.3;
+/** ...but a different recipe that uses the same leftovers is preferred over the repeat. */
+const REPEAT_WEIGHT = 0.5;
 
 /** Which recipe effort tiers fit each meal on a day of the given effort, and how much to favor each. */
 export function effortWeight(slot: MealSlot, day: Effort, recipe: Effort): number {
@@ -103,6 +123,10 @@ export interface PlanInput {
   keep?: Map<string, string>;
   /** Recipes that must not go in a slot (a swap must give something new). */
   exclude?: Map<string, Set<string>>;
+  /** Packages opened the week before and not finished (still good at the start of this week). */
+  carryIn?: OpenPack[];
+  /** Recipes planned the week before: used less, so weeks do not look alike. */
+  recent?: Set<string>;
 }
 
 export interface PlanResult {
@@ -146,6 +170,12 @@ export function fitPortions(meals: FitMeal[], kcalTarget: number): { portions: n
 
 interface WeekState {
   used: Set<string>;
+  /** The days each recipe is planned on this week. */
+  uses: Map<string, Set<string>>;
+  /** Batch recipes: their servings are already planned, so they are never cooked again as a separate meal. */
+  batchRecipes: Set<string>;
+  /** Packages opened and not finished so far. */
+  open: OpenState;
   eggs: number;
   treats: number;
   sweet: number;
@@ -181,12 +211,14 @@ function attemptWeek(input: PlanInput, rng: Rng): DayPlan[] {
   const fixedBySlot = new Map<string, PlannedMeal>();
   setups.forEach((d, i) => (input.fixed?.[i] ?? []).forEach((m) => fixedBySlot.set(key(d.date, m.slot), m)));
 
-  const state: WeekState = { used: new Set(), eggs: 0, treats: 0, sweet: 0, dinnerProtein: new Map() };
+  const state: WeekState = { used: new Set(), uses: new Map(), batchRecipes: new Set((input.batches ?? []).map((b) => b.recipeId)), open: new Map((input.carryIn ?? []).map((o) => [o.pkg.key, { ...o }])), eggs: 0, treats: 0, sweet: 0, dinnerProtein: new Map() };
   const count = { fish: 0, poultry: 0, red: 0 };
   for (const [k, m] of fixedBySlot) {
     const p = recipeOf(m);
     if (!p) continue;
     state.used.add(p.id); // (a batch recipe is not also planned as a separate meal)
+    const date = k.split('|')[0];
+    state.uses.set(p.id, (state.uses.get(p.id) ?? new Set()).add(date));
     if (p.cls !== 'plant') count[p.cls]++;
     if (p.eggs) state.eggs++;
     if (p.treat && m.slot === 'snack') { state.treats++; if (p.issues.length) state.sweet++; }
@@ -266,7 +298,8 @@ function fillDay(
     const c = cls.get(key(d.date, s)) ?? 'plant';
     const excluded = input.exclude?.get(key(d.date, s));
     return pool.filter((p) => {
-      if (p.weight <= 0 || !p.meals.includes(s) || p.cls !== c || state.used.has(p.id) || excluded?.has(p.id)) return false;
+      if (p.weight <= 0 || !p.meals.includes(s) || p.cls !== c || excluded?.has(p.id)) return false;
+      if (state.used.has(p.id) && !mayRepeat(p)) return false;
       if (s === 'snack' && p.kcal > SNACK_MAX_KCAL) return false; // e.g. two muffins are breakfast, not a snack
       if (effortWeight(s, d.effort, p.effort) <= 0) return false;
       if (s === 'snack' ? p.issues.length > 0 && !p.treat : p.issues.length > 0) return false;
@@ -282,9 +315,22 @@ function fillDay(
     });
   });
 
-  const weightOf = (p: PoolRecipe, s: MealSlot) => {
+  // A recipe planned on an earlier day may come back (any meal, any number of times) to use up what is open.
+  function mayRepeat(p: PoolRecipe): boolean {
+    const dates = state.uses.get(p.id);
+    return !!dates && !state.batchRecipes.has(p.id) && !dates.has(d.date) && [...dates].some((x) => x < d.date) && p.packaged.length > 0;
+  }
+
+  const weightOf = (p: PoolRecipe, s: MealSlot, open: OpenState) => {
     let w = p.weight * effortWeight(s, d.effort, p.effort);
+    // Using up what is already open: up to (1 + LEFTOVER_BOOST) times as likely.
+    const lo = p.packaged.length ? leftoverUse(open, p.packaged, peopleFor(d, s), d.date) : 0;
+    if (lo > 0) w *= 1 + LEFTOVER_BOOST * Math.min(lo, 1);
+    // Opening a package and leaving most of it: less likely (unless a later meal uses it up, see above).
+    if (p.packaged.length) w /= 1 + NEW_OPEN_PENALTY * newLeftover(open, p.packaged, peopleFor(d, s), d.date);
+    if (state.used.has(p.id)) w = lo >= REPEAT_MIN ? w * REPEAT_WEIGHT ** (state.uses.get(p.id)?.size ?? 1) : 0;
     if (input.avoid?.has(p.id)) w *= 0.05;
+    if (input.recent?.has(p.id)) w *= RECENT_WEIGHT;
     if (input.keep?.get(key(d.date, s)) === p.id) w *= 6;
     if (legume.wantLegume && p.legume && (s === 'lunch' || s === 'dinner')) w *= 1.6;
     if (p.treat) w *= 0.4;
@@ -294,21 +340,30 @@ function fillDay(
   const fixedActive = batchCookMin + fixedHere.reduce((s, f) => s + (f && !f.batchId ? recipeOf(f)?.activeMin ?? 0 : 0), 0);
   const limit = activeLimit(pool, d, fixedActive, slots.filter((_, i) => !fixedHere[i]));
 
-  type Combo = { picks: (PoolRecipe | undefined)[]; portions: number[]; kcal: number; fiber: number; score: number };
+  type Combo = { picks: (PoolRecipe | undefined)[]; portions: number[]; kcal: number; fiber: number; score: number; open: OpenState };
   let best: Combo | null = null;
   for (let t = 0; t < COMBOS_PER_DAY; t++) {
     const picks: (PoolRecipe | undefined)[] = [];
     const taken = new Set<string>();
+    const open = cloneOpen(state.open); // what is open as this combination's meals are cooked, in order
     let ok = true;
     let eggs = 0;
     slots.forEach((s, i) => {
       if (!ok) return;
-      if (fixedHere[i]) { picks.push(recipeOf(fixedHere[i]!)); return; }
-      const open = cands[i].filter((c) => !taken.has(c.id));
+      const f = fixedHere[i];
+      if (f) {
+        const fp = recipeOf(f);
+        picks.push(fp);
+        if (fp && !f.batchId && !f.custom) cook(open, fp.packaged, f.people, d.date);
+        return;
+      }
+      const choices = cands[i].filter((c) => !taken.has(c.id));
       // First try: keep what was there before (re-balancing changes as little as it can).
-      const kept = t === 0 ? open.find((c) => input.keep?.get(key(d.date, s)) === c.id) : undefined;
-      const p = kept ?? weightedPick(rng, open, (c) => weightOf(c, s));
+      const keptId = input.keep?.get(key(d.date, s));
+      const kept = t === 0 ? choices.find((c) => c.id === keptId && weightOf(c, s, open) > 0) : undefined;
+      const p = kept ?? weightedPick(rng, choices, (c) => weightOf(c, s, open));
       if (!p) { ok = false; return; }
+      cook(open, p.packaged, peopleFor(d, s), d.date);
       if (p.eggs) eggs++;
       taken.add(p.id);
       picks.push(p);
@@ -339,7 +394,7 @@ function fillDay(
     // Recipes were already drawn in proportion to how much she likes them, so the first combination that meets
     // every target wins (scoring on preference again would always favor the same few recipes).
     const score = -40 * Math.max(0, err - KCAL_TOLERANCE) - 25 * fiberShort - (legume.wantLegume && !hasLegume ? 0.5 : 0);
-    if (!best || score > best.score) best = { picks, portions: fit.portions, kcal: fit.kcal, fiber: fit.fiber, score };
+    if (!best || score > best.score) best = { picks, portions: fit.portions, kcal: fit.kcal, fiber: fit.fiber, score, open };
     if (score === 0) break;
   }
 
@@ -348,15 +403,18 @@ function fillDay(
     const p = best?.picks[i];
     const portion = best?.portions[i] ?? f?.portion ?? 1;
     if (f) return { ...f, portion: isFixed(f) ? f.portion : portion };
-    return { slot: s, recipeId: p?.id, portion, people: peopleFor(d, s) };
+    return { slot: s, recipeId: p?.id, portion, people: peopleFor(d, s), ...(p && state.used.has(p.id) ? { usesUp: true } : {}) };
   });
 
   // commit to the week
+  if (best) state.open = best.open;
+  else for (const m of meals) { const fp = recipeOf(m); if (fp && !m.batchId && !m.custom) cook(state.open, fp.packaged, m.people, d.date); }
   meals.forEach((m, i) => {
     if (fixedHere[i]) return;
     const p = best?.picks[i];
     if (!p) return;
     state.used.add(p.id);
+    state.uses.set(p.id, (state.uses.get(p.id) ?? new Set()).add(d.date));
     if (p.eggs) state.eggs++;
     if (p.treat && m.slot === 'snack') { state.treats++; if (p.issues.length) state.sweet++; }
     if (m.slot === 'dinner') state.dinnerProtein.set(d.date, p.protein);
@@ -384,7 +442,7 @@ export interface Violation {
   fixed: boolean;
 }
 
-export function checkWeek(days: DayPlan[], input: Pick<PlanInput, 'pool' | 'rules' | 'batches'>): Violation[] {
+export function checkWeek(days: DayPlan[], input: Pick<PlanInput, 'pool' | 'rules' | 'batches' | 'carryIn'>): Violation[] {
   const { pool, rules } = input;
   const byId = new Map(pool.map((p) => [p.id, p]));
   const batchRecipe = new Map((input.batches ?? []).map((b) => [b.id, b.recipeId]));
@@ -424,13 +482,19 @@ export function checkWeek(days: DayPlan[], input: Pick<PlanInput, 'pool' | 'rule
   const treats = all.filter((x) => x.p?.treat && x.m.slot === 'snack');
   if (treats.length > MAX_TREATS) v.push({ rule: 'treats', message: `${treats.length} sweet treats this week.`, fixed: treats.filter((x) => isFixed(x.m)).length > MAX_TREATS });
 
-  // no repeats (batch servings are meant to repeat)
-  const seen = new Map<string, PlannedMeal>();
+  // No repeats (batch servings are meant to repeat), except a meal that comes back on a later day and uses up
+  // something already open. Never twice on the same day.
+  const tally = tallyWeek(days, mealUses(pool), input.carryIn);
+  const seen = new Map<string, { first: PlannedMeal; lastDate: string }>();
   for (const { m, d } of all) {
     if (!m.recipeId || m.batchId) continue;
     const prev = seen.get(m.recipeId);
-    if (prev) v.push({ rule: 'repeat', message: `${byId.get(m.recipeId)?.recipe.name ?? m.recipeId} is planned twice.`, date: d.date, fixed: isFixed(prev) && isFixed(m) });
-    seen.set(m.recipeId, m);
+    if (!prev) { seen.set(m.recipeId, { first: m, lastDate: d.date }); continue; }
+    const usedUp = (tally.usedUp.get(key(d.date, m.slot)) ?? []).reduce((s, u) => s + u.frac, 0);
+    // (one the planner chose for that stays allowed if a later change to another day takes the leftovers instead)
+    const usesUp = d.date > prev.lastDate && (!!m.usesUp || usedUp >= REPEAT_MIN - 1e-9);
+    if (!usesUp) v.push({ rule: 'repeat', message: `${byId.get(m.recipeId)?.recipe.name ?? m.recipeId} is planned more than once${d.date === prev.lastDate ? ' on the same day' : ''}.`, date: d.date, fixed: isFixed(prev.first) && isFixed(m) });
+    prev.lastDate = d.date;
   }
 
   days.forEach((d, i) => {
@@ -496,6 +560,36 @@ interface Ctx {
   pool: PoolRecipe[];
   rules: DietRules;
   batches?: BatchInfo[];
+  /** Packages left open from last week. */
+  carryIn?: OpenPack[];
+  /** Recipes in last week's plan. */
+  recent?: Set<string>;
+}
+
+/** What a planned meal cooks from packages (batch servings and meals she typed in cook nothing new). */
+export function mealUses(pool: PoolRecipe[]): (m: PlannedMeal) => MealUses | undefined {
+  const byId = new Map(pool.map((p) => [p.id, p]));
+  return (m) => {
+    const p = !m.batchId && !m.custom && m.recipeId ? byId.get(m.recipeId) : undefined;
+    return p ? { uses: p.packaged, servings: m.people } : undefined;
+  };
+}
+
+/**
+ * What the weeks before hand to the week starting `weekStart`: packages still open and good (from last week,
+ * including what that week was still finishing from the week before), and last week's recipes.
+ * `before` is [two weeks ago, last week]; a week with no plan is undefined.
+ */
+export function fromWeeksBefore(weekStart: string, before: (DayPlan[] | undefined)[], pool: PoolRecipe[]): { carryIn: OpenPack[]; recent: Set<string> } {
+  const usesOf = mealUses(pool);
+  let carry: OpenPack[] = [];
+  before.forEach((days, i) => {
+    const start = addDays(weekStart, -7 * (before.length - i));
+    carry = days ? carryOver(tallyWeek(days, usesOf, carry).end, addDays(start, 7)) : [];
+  });
+  const last = before[before.length - 1] ?? [];
+  const recent = new Set(last.flatMap((d) => d.meals.filter((m) => m.recipeId && !m.batchId).map((m) => m.recipeId!)));
+  return { carryIn: carry, recent };
 }
 
 /** A brand-new week from her day-by-day choices. */

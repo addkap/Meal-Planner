@@ -36,3 +36,8 @@ export function dayName(s: string, style: 'long' | 'short' = 'long'): string {
 export function shortDate(s: string): string {
   return fromISO(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
+
+/** Whole days from `a` to `b` (negative when `b` is earlier). */
+export function daysBetween(a: string, b: string): number {
+  return Math.round((fromISO(b).getTime() - fromISO(a).getTime()) / 86_400_000);
+}

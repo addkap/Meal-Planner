@@ -6,6 +6,9 @@
 // portion sizes. Then the total is expressed the way it is sold: whole onions, cans, bunches, bags...
 // with the exact amount the recipes need shown alongside.
 //
+// Packages left open from last week (½ can of chickpeas) are used first, for meals in the days they are still
+// good, so less is bought; an item that last week's leftovers fully cover is not bought at all.
+//
 // Not on the list: batch servings (already cooked, or bought through the batch itself), meals she typed in,
 // and tap water. A batch she has not cooked yet adds its whole recipe, scaled to the batch size.
 
@@ -15,6 +18,7 @@ import { addDays, dayName, shortDate } from './dates';
 import type { FoodDb } from './foodDb';
 import { formatAmount, isMass, isVolume, MASS_G, normalizeUnit, PACKAGE_UNITS, pluralize, toGrams, VOLUME_ML } from './units';
 import type { Batch, DayPlan, Food, GroceryMark, Recipe, Store, StoreAssignment } from '../types';
+import { goodOn, packageOf, packText, type OpenPack } from './leftovers';
 
 /** Units that a food is sold in. When the food has one, the list rounds up to whole ones. */
 const SHOP_UNITS = [...PACKAGE_UNITS];
@@ -41,13 +45,20 @@ export interface GroceryItem {
   needed?: string;
   grams: number | null;
   uses: Use[];
+  /** Taken from a package left open last week, e.g. "½ can". */
+  fromLastWeek?: string;
+  /** Last week's leftovers cover it all: nothing to buy. */
+  covered?: boolean;
 }
 
 // ---------------------------------------------------------------- collecting
 
-export function collectNeeds(days: DayPlan[], recipes: Map<string, Recipe>, foods: FoodDb, batches: Batch[] = []): Map<string, { food: Food; needs: Need[]; uses: Use[] }> {
-  const out = new Map<string, { food: Food; needs: Need[]; uses: Use[] }>();
-  const add = (recipe: Recipe, people: number, label: string) => {
+type Collected = { food: Food; needs: Need[]; uses: Use[]; fromBefore: number };
+
+export function collectNeeds(days: DayPlan[], recipes: Map<string, Recipe>, foods: FoodDb, batches: Batch[] = [], carryIn: OpenPack[] = []): Map<string, Collected> {
+  const out = new Map<string, Collected>();
+  const carry = new Map(carryIn.map((o) => [o.pkg.key, { ...o }]));
+  const add = (recipe: Recipe, people: number, label: string, date?: string) => {
     const f = people / recipe.servings;
     for (const ing of recipe.ingredients) {
       if (ing.food.startsWith('key:') && FOOD_KEYS[ing.food.slice(4) as FoodKeyName]?.noGrocery) continue;
@@ -62,8 +73,17 @@ export function collectNeeds(days: DayPlan[], recipes: Map<string, Recipe>, food
       }
       const food = foods.get(ref);
       if (!food) continue;
-      const entry = out.get(ref) ?? { food, needs: [], uses: [] };
-      entry.needs.push({ qty, unit, grams: toGrams(food, qty, unit) });
+      const entry = out.get(ref) ?? { food, needs: [], uses: [], fromBefore: 0 };
+      const grams = toGrams(food, qty, unit);
+      const left = date ? carry.get(ref) : undefined;
+      if (left && date && grams && left.left > 0 && goodOn(left, date)) {
+        // use what is left in last week's open package first
+        const take = Math.min(left.left, grams);
+        left.left -= take;
+        entry.fromBefore += take;
+        const rest = grams - take;
+        if (rest > 0.5) entry.needs.push({ qty: (qty * rest) / grams, unit, grams: rest });
+      } else entry.needs.push({ qty, unit, grams });
       if (!entry.uses.some((u) => u.recipe === recipe.name && u.label === label)) entry.uses.push({ recipe: recipe.name, label });
       out.set(ref, entry);
     }
@@ -72,7 +92,7 @@ export function collectNeeds(days: DayPlan[], recipes: Map<string, Recipe>, food
     for (const m of d.meals) {
       if (m.batchId || m.custom || !m.recipeId) continue;
       const r = recipes.get(m.recipeId);
-      if (r) add(r, m.people, `${dayName(d.date, 'short')} ${m.slot}`);
+      if (r) add(r, m.people, `${dayName(d.date, 'short')} ${m.slot}`, d.date);
     }
   }
   // Batches she plans to cook this week (not cooked yet): the whole batch.
@@ -178,11 +198,17 @@ function describeNeed(needs: Need[]): string {
 }
 
 /** The full list, grouped by aisle in store order. */
-export function buildGroceryList(days: DayPlan[], recipes: Map<string, Recipe>, foods: FoodDb, batches: Batch[] = []): GroceryItem[] {
+export function buildGroceryList(days: DayPlan[], recipes: Map<string, Recipe>, foods: FoodDb, batches: Batch[] = [], carryIn: OpenPack[] = []): GroceryItem[] {
   const items: GroceryItem[] = [];
-  for (const [key, { food, needs, uses }] of collectNeeds(days, recipes, foods, batches)) {
+  for (const [key, { food, needs, uses, fromBefore }] of collectNeeds(days, recipes, foods, batches, carryIn)) {
+    const pkg = fromBefore > 0 ? packageOf(food) : null;
+    const fromLastWeek = pkg ? packText(fromBefore / pkg.g, pkg.unit) : undefined;
+    if (!needs.length) {
+      items.push({ key, name: food.name, cat: food.cat, buy: '', grams: 0, uses, fromLastWeek, covered: true });
+      continue;
+    }
     const merged = mergeNeeds(food, needs);
-    items.push({ key, name: food.name, cat: food.cat, buy: merged.buy, needed: merged.needed, grams: merged.grams, uses });
+    items.push({ key, name: food.name, cat: food.cat, buy: merged.buy, needed: merged.needed, grams: merged.grams, uses, fromLastWeek });
   }
   const order = new Map<GroceryCategory, number>(GROCERY_CATEGORIES.map((c, i) => [c.id, i]));
   return items.sort((a, b) => (order.get(a.cat)! - order.get(b.cat)!) || a.name.localeCompare(b.name));

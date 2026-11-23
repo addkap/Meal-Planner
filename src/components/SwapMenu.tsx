@@ -6,6 +6,7 @@ import { swapOptions, type SwapOption } from '../lib/planner';
 import { formatQty } from '../lib/units';
 import { EffortBadge, kcalText, minutesText } from './ui';
 import type { CustomMeal, DayPlan, MealSlot } from '../types';
+import { useWeeksBefore } from '../useWeeksBefore';
 
 const SLOT_WORD: Record<MealSlot, string> = { breakfast: 'breakfast', lunch: 'lunch', dinner: 'dinner', snack: 'snack' };
 
@@ -19,7 +20,8 @@ export default function SwapMenu({ days, day, slot, onSurprise, onPickRecipe, on
   onClose: () => void;
 }) {
   const { pool, settings, batchInfo } = useAppData();
-  const options = useMemo(() => swapOptions(days, day.date, slot, { pool, rules: settings.rules, batches: batchInfo }), [days, day.date, slot, pool, settings.rules, batchInfo]);
+  const before = useWeeksBefore(days[0]?.date ?? day.date);
+  const options = useMemo(() => swapOptions(days, day.date, slot, { pool, rules: settings.rules, batches: batchInfo, ...before }), [days, day.date, slot, pool, settings.rules, batchInfo, before]);
   const [mode, setMode] = useState<'menu' | 'all' | 'custom'>('menu');
   const [q, setQ] = useState('');
   const current = day.meals.find((m) => m.slot === slot)?.custom;
