@@ -6,7 +6,7 @@
 // opens the site can see it), so it is safe in a public repository. Until it is filled in, Settings
 // says sync is not set up and everything else works normally.
 // ---------------------------------------------------------------------------
-export const MS_CLIENT_ID: string = '';
+export const MS_CLIENT_ID: string = '00825ba8-ff42-44b7-8fda-547e9eb330d3';
 
 /** The only file this app ever reads or writes in the OneDrive folder (see appIdentity.ts). */
 export { DATA_FILE_NAME } from './appIdentity';

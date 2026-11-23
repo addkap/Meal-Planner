@@ -2,7 +2,7 @@
 
 A weekly Mediterranean / Blue Zone meal planner, grocery list and nutrition tracker, built for one person to use on an iPhone. It is an installable web app (PWA), set up the same way as Lift Log: React + TypeScript + Vite, data saved on the phone first, a background copy in her OneDrive folder, and free hosting on GitHub Pages. There is no server and no account.
 
-> **Status: all 8 phases built and tested.** Three things are left for you, in the steps below: register the app with Microsoft (for OneDrive), publish the site, and put it on your mom's iPhone.
+> **Status: all 8 phases built and tested.** The Microsoft client ID is in `src/config.ts`. Left for you, in the steps below: publish the site and put it on your mom's iPhone.
 
 | Phase | What | Status |
 |---|---|---|
