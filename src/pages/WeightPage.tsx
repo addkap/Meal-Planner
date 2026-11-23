@@ -139,10 +139,8 @@ function WeighInForm({ unit, editing, onDone }: { unit: 'lb' | 'kg'; editing: We
       void db.weighIns.put(rec).then(() => { setValue(''); setNote(''); onDone(); });
     }}>
       <h2>{editing ? 'Change weigh-in' : 'Log a weigh-in'}</h2>
-      <div className="amount-row">
-        <label className="field"><span>Weight ({unit})</span><input type="number" step="any" inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} placeholder={unit === 'lb' ? 'e.g. 152.4' : 'e.g. 69.1'} /></label>
-        <label className="field"><span>Date</span><input type="date" value={date} max={todayLocal()} onChange={(e) => setDate(e.target.value || todayLocal())} /></label>
-      </div>
+      <label className="field"><span>Weight ({unit})</span><input type="number" step="any" inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} placeholder={unit === 'lb' ? 'e.g. 152.4' : 'e.g. 69.1'} /></label>
+      <label className="field"><span>Date</span><input type="date" value={date} max={todayLocal()} onChange={(e) => setDate(e.target.value || todayLocal())} /></label>
       <label className="field"><span>Note (optional)</span><input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. after a big dinner" /></label>
       {value && !ok && <p className="error">That does not look like a weight in {unit}.</p>}
       <button className="btn primary" type="submit" disabled={!ok}>{editing ? 'Save' : 'Add weigh-in'}</button>

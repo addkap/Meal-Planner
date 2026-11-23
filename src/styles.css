@@ -208,6 +208,7 @@ details.card:not([open]) > summary::after { content: '▸'; }
 .amounts { padding: 0 12px 12px; }
 .field.inline { flex: 1; }
 .amount-row { display: grid; grid-template-columns: 1fr 1.3fr; gap: 10px; align-items: end; }
+.amount-row.even { grid-template-columns: 1fr 1fr; }
 /* Inputs shrink to their column instead of their built-in width, so nothing pushes past the screen. */
 .amount-row > *, .field input, .field select { min-width: 0; }
 .field input { width: 100%; }
@@ -243,6 +244,10 @@ textarea { width: 100%; padding: 10px 14px; border: 2px solid #9fb3c8; border-ra
 .chart { margin: 0 -6px; }
 .weigh-row { padding: 6px 0; border-bottom: 1px solid #e3eef3; }
 input[type="date"] { min-height: 54px; padding: 8px 12px; border: 2px solid #9fb3c8; border-radius: 12px; font-size: 19px; background: #fff; width: 100%; }
+/* iPhone Safari gives date boxes a built-in minimum width and ignores width: 100% unless the native look is
+   turned off; without this they push past the screen edge. */
+input[type="date"] { -webkit-appearance: none; appearance: none; display: block; min-width: 0; max-width: 100%; color: inherit; }
+input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
 
 /* ---- settings and sync ---- */
 .rule-row { padding: 6px 0; border-bottom: 1px solid #e3eef3; }

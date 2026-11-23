@@ -35,7 +35,7 @@ export default function SettingsPage() {
       <form noValidate className="card" onSubmit={(e) => { e.preventDefault(); if (!targetsOk) return; void saveSettings({ kcal: Number(kcal), fiber: Number(fiber) }).then(() => { setSaved(true); setTimeout(() => setSaved(false), 2000); }); }}>
         <h2>Daily targets</h2>
         <p className="muted small">Used for new plans and the Today tab. Any single day can still be changed on its own.</p>
-        <div className="amount-row">
+        <div className="amount-row even">
           <label className="field"><span>Calories</span><input type="number" step="any" inputMode="numeric" value={kcal} onChange={(e) => setKcal(e.target.value)} /></label>
           <label className="field"><span>Fiber (g)</span><input type="number" step="any" inputMode="numeric" value={fiber} onChange={(e) => setFiber(e.target.value)} /></label>
         </div>
