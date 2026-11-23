@@ -35,7 +35,9 @@ export default function PlanPage() {
   });
   const setWeekStart = (w: string) => { setWeekStartState(w); try { sessionStorage.setItem(PLAN_WEEK_KEY, w); } catch { /* ignore */ } };
   const [editing, setEditing] = useState(false);
-  const plan = useLiveQuery(async () => (await db.plans.get(weekStart)) ?? null, [weekStart]);
+  const loaded = useLiveQuery(async () => (await db.plans.get(weekStart)) ?? null, [weekStart]);
+  // Right after changing weeks the query can still hold the previous week's plan for a moment: ignore it.
+  const plan = loaded && loaded.id !== weekStart ? undefined : loaded;
   const thisWeek = weekStartOf(todayLocal());
 
   const label = weekStart === thisWeek ? 'This week' : weekStart === addDays(thisWeek, 7) ? 'Next week' : weekStart === addDays(thisWeek, -7) ? 'Last week' : `Week of ${shortDate(weekStart)}`;
@@ -51,7 +53,7 @@ export default function PlanPage() {
         <button className="arrow" aria-label="Next week" onClick={() => { setWeekStart(addDays(weekStart, 7)); setEditing(false); }}>›</button>
       </div>
       {plan === undefined ? null : !plan || plan.deletedAt || editing ? (
-        <PlanSetup weekStart={weekStart} existing={plan && !plan.deletedAt ? plan : null} onDone={() => setEditing(false)} onCancel={plan && !plan.deletedAt ? () => setEditing(false) : undefined} />
+        <PlanSetup key={weekStart} weekStart={weekStart} existing={plan && !plan.deletedAt ? plan : null} onDone={() => setEditing(false)} onCancel={plan && !plan.deletedAt ? () => setEditing(false) : undefined} />
       ) : (
         <WeekView plan={plan} onEditSetup={() => setEditing(true)} />
       )}

@@ -3,12 +3,14 @@ import { db } from './db';
 import { DEFAULT_SETTINGS } from './lib/defaults';
 import { newId } from './lib/ids';
 import type { Batch, CustomFood, Feedback, GroceryMark, LogEntry, MyRecipe, PlannedMeal, RecipePref, Settings, Store, WeekPlan } from './types';
+import { addDays } from './lib/dates';
+import { normalizeAge } from './lib/dri';
 
 const now = () => Date.now();
 
 export async function getSettings(): Promise<Settings> {
   const s = await db.settings.get('settings');
-  return s ? { ...DEFAULT_SETTINGS, ...s, rules: { ...DEFAULT_SETTINGS.rules, ...s.rules } } : DEFAULT_SETTINGS;
+  return s ? { ...DEFAULT_SETTINGS, ...s, age: normalizeAge(s.age), rules: { ...DEFAULT_SETTINGS.rules, ...s.rules } } : DEFAULT_SETTINGS;
 }
 
 export async function saveSettings(patch: Partial<Settings>): Promise<void> {
@@ -18,6 +20,16 @@ export async function saveSettings(patch: Partial<Settings>): Promise<void> {
 
 export async function savePlan(plan: Omit<WeekPlan, 'updatedAt'>): Promise<void> {
   await db.plans.put({ ...plan, updatedAt: now() });
+}
+
+/**
+ * Repairs plans whose days carry another week's dates (an earlier bug: the setup screen kept the first week's
+ * dates after moving to a different week). Days are re-dated in order; returns how many plans were fixed.
+ */
+export async function repairPlanDates(): Promise<number> {
+  const bad = (await db.plans.toArray()).filter((p) => !p.deletedAt && p.days.some((d, i) => d.date !== addDays(p.weekStart, i)));
+  for (const p of bad) await db.plans.put({ ...p, days: p.days.map((d, i) => ({ ...d, date: addDays(p.weekStart, i) })), updatedAt: now() });
+  return bad.length;
 }
 
 export async function deletePlan(weekStart: string): Promise<void> {

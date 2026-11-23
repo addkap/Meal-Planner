@@ -222,7 +222,8 @@ export interface WeighIn extends Rec {
 // ---------------------------------------------------------------- settings
 
 export type Sex = 'female' | 'male';
-export type AgeRange = '19-30' | '31-50' | '51-70' | '71+';
+/** Ten-year steps, lined up with the Dietary Reference Intake age bands (which change at 31, 51 and 71). */
+export type AgeRange = '19-30' | '31-40' | '41-50' | '51-60' | '61-70' | '71-80' | '81+';
 
 export interface Settings extends Rec {
   id: 'settings';

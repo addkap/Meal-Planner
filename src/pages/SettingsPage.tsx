@@ -7,6 +7,7 @@ import { useAppData } from '../AppData';
 import { useNav } from '../nav';
 import { saveSettings, setFavorite, setFeedback } from '../store';
 import { DEFAULT_RULES } from '../lib/pool';
+import { AGE_RANGES } from '../lib/dri';
 import { BackBar, Segmented, Stepper } from '../components/ui';
 import OneDriveSettings from '../components/OneDriveSettings';
 import BackupSettings from '../components/BackupSettings';
@@ -46,7 +47,7 @@ export default function SettingsPage() {
         <h2>Nutrition targets are for</h2>
         <p className="muted small">Vitamins and minerals are compared with the Dietary Reference Intakes for this person.</p>
         <Segmented<Sex> label="Sex" value={settings.sex} options={[{ value: 'female', label: 'Woman' }, { value: 'male', label: 'Man' }]} onChange={(sex) => void saveSettings({ sex })} />
-        <Segmented<AgeRange> label="Age" value={settings.age} options={(['19-30', '31-50', '51-70', '71+'] as AgeRange[]).map((a) => ({ value: a, label: a }))} onChange={(age) => void saveSettings({ age })} />
+        <Segmented<AgeRange> label="Age" value={settings.age} options={AGE_RANGES.map((a) => ({ value: a, label: a }))} onChange={(age) => void saveSettings({ age })} />
       </section>
 
       <section className="card">

@@ -15,6 +15,7 @@ import { RETURN_TAB_KEY } from './appIdentity';
 import { initialPullIfEmpty, startAutoSync } from './sync/engine';
 import RecipeEditorPage from './pages/RecipeEditorPage';
 import { BatchesPage, BatchNewPage, BatchPlanPage } from './pages/BatchPages';
+import { repairPlanDates } from './store';
 
 /** True when the phone has internet. Everything works either way. */
 function useOnline(): boolean {
@@ -38,6 +39,7 @@ export default function App() {
   // Background OneDrive sync (local-first: nothing waits for it). A phone with no data pulls first.
   useEffect(() => {
     try { localStorage.removeItem(RETURN_TAB_KEY); } catch { /* ignore */ }
+    void repairPlanDates().catch(() => {});
     void Promise.race([initialPullIfEmpty().catch(() => {}), new Promise((r) => setTimeout(r, 7000))]).then(() => startAutoSync());
   }, []);
   const online = useOnline();

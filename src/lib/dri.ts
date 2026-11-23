@@ -13,7 +13,15 @@ export interface Target {
 }
 
 type ByAge = [number, number, number, number]; // 19-30, 31-50, 51-70, 71+
-const AGE_INDEX: Record<AgeRange, number> = { '19-30': 0, '31-50': 1, '51-70': 2, '71+': 3 };
+const AGE_INDEX: Record<AgeRange, number> = { '19-30': 0, '31-40': 1, '41-50': 1, '51-60': 2, '61-70': 2, '71-80': 3, '81+': 3 };
+export const AGE_RANGES = Object.keys(AGE_INDEX) as AgeRange[];
+
+/** Earlier versions saved 20-year ranges; map them (and anything unknown) onto the 10-year ones with the same targets. */
+const OLD_AGES: Record<string, AgeRange> = { '31-50': '41-50', '51-70': '51-60', '71+': '71-80' };
+export function normalizeAge(age: string | undefined): AgeRange {
+  if (age && age in AGE_INDEX) return age as AgeRange;
+  return (age && OLD_AGES[age]) || '51-60';
+}
 
 const RDA: Record<Sex, Partial<Record<NutrientKey, number | ByAge>>> = {
   female: {
@@ -32,7 +40,7 @@ const RDA: Record<Sex, Partial<Record<NutrientKey, number | ByAge>>> = {
 export const UPPER_LIMITS: Partial<Record<NutrientKey, number>> = { iron: 45, zinc: 40, selenium: 400, copper: 10, manganese: 11, calcium: 2000 };
 
 export function dailyTargets(sex: Sex, age: AgeRange, kcal: number, fiber: number): Record<NutrientKey, Target> {
-  const pick = (v: number | ByAge | undefined) => (Array.isArray(v) ? v[AGE_INDEX[age]] : (v ?? 0));
+  const pick = (v: number | ByAge | undefined) => (Array.isArray(v) ? v[AGE_INDEX[normalizeAge(age)]] : (v ?? 0));
   const t = {} as Record<NutrientKey, Target>;
   for (const [k, v] of Object.entries(RDA[sex])) t[k as NutrientKey] = { amount: pick(v), kind: 'min' };
   t.kcal = { amount: kcal, kind: 'info' };

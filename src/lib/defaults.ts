@@ -8,7 +8,7 @@ export const DEFAULT_SETTINGS: Settings = {
   kcal: 1700,
   fiber: 28,
   sex: 'female',
-  age: '51-70',
+  age: '51-60',
   people: 3,
   weightUnit: 'lb',
   rules: DEFAULT_RULES,

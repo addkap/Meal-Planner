@@ -9,6 +9,7 @@ import { loadFoodDb, type FoodDb } from './lib/foodDb';
 import { buildPool, type PoolRecipe } from './lib/pool';
 import type { BatchInfo } from './lib/planner';
 import type { Batch, Recipe, RecipePref, Settings } from './types';
+import { normalizeAge } from './lib/dri';
 
 export interface AppData {
   foods: FoodDb;
@@ -49,7 +50,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AppData | null>(() => {
     if (!foods || !prefList || !mine || !customFoods || !batches) return null;
     foods.setCustomFoods(customFoods);
-    const settings: Settings = settingsRow ? { ...DEFAULT_SETTINGS, ...settingsRow, rules: { ...DEFAULT_SETTINGS.rules, ...settingsRow.rules } } : DEFAULT_SETTINGS;
+    const settings: Settings = settingsRow ? { ...DEFAULT_SETTINGS, ...settingsRow, age: normalizeAge(settingsRow.age), rules: { ...DEFAULT_SETTINGS.rules, ...settingsRow.rules } } : DEFAULT_SETTINGS;
     const myLive = mine.filter((r) => !r.deletedAt);
     const listed = myLive.filter((r) => !r.hidden); // batch-only recipes are not planned or listed
     // Deleted recipes of hers stay readable for past days she logged them, but are not planned or listed.
