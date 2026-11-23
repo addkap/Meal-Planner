@@ -2,7 +2,7 @@
 
 A weekly Mediterranean / Blue Zone meal planner, grocery list and nutrition tracker, built for one person to use on an iPhone. It is an installable web app (PWA), set up the same way as Lift Log: React + TypeScript + Vite, data saved on the phone first, a background copy in her OneDrive folder, and free hosting on GitHub Pages. There is no server and no account.
 
-> **Status: all 8 phases built and tested.** The Microsoft client ID is in `src/config.ts`. Left for you, in the steps below: publish the site and put it on your mom's iPhone.
+> **Status: built, tested and live at <https://addkap.github.io/Meal-Planner/>.** The Microsoft client ID is in `src/config.ts`. Left for you: put it on your mom's iPhone and connect her OneDrive folder (Steps 3 to 5).
 
 | Phase | What | Status |
 |---|---|---|
@@ -112,6 +112,7 @@ Her OneDrive owns the folder, so it is in her **My files**.
 ### Troubleshooting
 - **"Redirect URI mismatch" when signing in:** the address in the address bar must be listed exactly in Step 1.5, including `https`, `Meal-Planner` with capitals, and the final `/`.
 - **"Does not exist in tenant 'Microsoft Services'":** the registration must allow personal Microsoft accounts (Step 1.3).
+- **The deploy's "deploy" step fails while "build" passes:** GitHub only lets listed branches publish. Repository **Settings → Environments → github-pages → Deployment branches** must include `main`. (It was added when the site was first published.)
 - **Blank page on GitHub Pages:** check the Actions tab for a red run. The address must end in `/Meal-Planner/`, which follows the repository name.
 - **The phone shows an old version:** close the app completely and open it again.
 - **Running it next to Lift Log on your computer:** this app uses ports 5176 and 4176, so both can run at once.
