@@ -386,12 +386,20 @@ export function checkWeek(days: DayPlan[], input: Pick<PlanInput, 'pool' | 'rule
   const v: Violation[] = [];
   const countOf = (c: ProteinClass, onlyFixed = false) => all.filter((x) => x.p?.cls === c && (!onlyFixed || isFixed(x.m))).length;
 
+  // Lunches and dinners the planner is free to fill. If kept meals and batches leave fewer of them than the
+  // fish and poultry minimums still need, a shortfall is caused by them, not by the planner.
+  const freeMain = all.filter((x) => !isFixed(x.m) && (x.m.slot === 'lunch' || x.m.slot === 'dinner')).length;
+  const stillNeeded = Math.max(0, rules.fishMin - countOf('fish', true)) + Math.max(0, rules.poultryMin - countOf('poultry', true));
+  const tooLittleRoom = freeMain < stillNeeded;
   const quota = (c: ProteinClass, label: string, min: number, max: number) => {
     const n = countOf(c);
     const nFixed = countOf(c, true);
     if (n > max) v.push({ rule: `${c}-max`, message: `${label} ${n} times this week (the plan allows at most ${max}).`, fixed: nFixed > max });
-    const roomLeft = all.some((x) => !isFixed(x.m) && (x.m.slot === 'lunch' || x.m.slot === 'dinner'));
-    if (n < min) v.push({ rule: `${c}-min`, message: `${label} only ${n} times this week (the plan aims for at least ${min}).`, fixed: !roomLeft });
+    if (n < min) v.push({
+      rule: `${c}-min`,
+      message: `${label} only ${n} times this week (the plan aims for at least ${min})${tooLittleRoom ? ', because batches and kept meals fill most lunches and dinners' : ''}.`,
+      fixed: tooLittleRoom,
+    });
   };
   quota('fish', 'Fish or seafood', rules.fishMin, rules.fishMax);
   quota('poultry', 'Poultry', rules.poultryMin, rules.poultryMax);

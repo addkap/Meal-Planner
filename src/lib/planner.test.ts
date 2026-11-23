@@ -7,7 +7,7 @@ import {
   type BatchInfo, type DaySetup, type PlanResult,
 } from './planner';
 import { planNutrition } from './planNutrition';
-import { makeRng, randInt, type Rng } from './rng';
+import { makeRng, randInt, shuffle, type Rng } from './rng';
 import { testDb } from './testDb';
 import type { DayPlan, Effort, MealSlot, PlannedMeal, Recipe, RecipePref } from '../types';
 
@@ -103,7 +103,7 @@ function randomBatch(rng: Rng, setups: DaySetup[], n: number, taken: Set<string>
   const spots = setups.flatMap((d, day) => p.meals.filter((s) => s !== 'snack' || d.snack).map((slot) => ({ day, slot })));
   const want = randInt(rng, 2, 6);
   const meals: { day: number; meal: PlannedMeal }[] = [];
-  for (const s of spots.sort(() => rng() - 0.5)) {
+  for (const s of shuffle(rng, spots)) { // (a proper shuffle: the same order on every Node version)
     if (meals.length >= want) break;
     const k = `${s.day}|${s.slot}`;
     if (taken.has(k)) continue;
@@ -412,5 +412,23 @@ describe('re-tuning a day after she changes a meal herself', () => {
     expect(after).toBeLessThanOrEqual(before);
     for (const m of tuned.meals) { expect(m.portion).toBeGreaterThanOrEqual(0.75); expect(m.portion).toBeLessThanOrEqual(1.5); }
     if (after / 1800 > 0.05) expect(tuned.warnings!.some((w) => w.includes('calories'))).toBe(true);
+  });
+});
+
+describe('when batches leave too little room', () => {
+  it('a fish or poultry shortfall caused by batches is explained, not counted as a planner mistake', () => {
+    const setups = randomSetups(makeRng(4242)).map((d) => ({ ...d, effort: 'medium' as const }));
+    const batches: BatchInfo[] = [
+      { id: 'soup', recipeId: 'l-tomato-and-white-bean-soup-with-kale', cookedOn: setups[0].date, cooked: true },
+      { id: 'ench', recipeId: 'd-black-bean-and-sweet-potato-enchiladas', cookedOn: setups[0].date, cooked: true },
+    ];
+    // the soup fills every lunch and the enchiladas every dinner but Monday's: one open main meal for 2 fish + 1 poultry
+    const fixed = setups.map((_, i) => [
+      { slot: 'lunch' as MealSlot, recipeId: batches[0].recipeId, batchId: 'soup', portion: 1, people: 1 },
+      ...(i > 0 ? [{ slot: 'dinner' as MealSlot, recipeId: batches[1].recipeId, batchId: 'ench', portion: 1, people: 1 }] : []),
+    ]);
+    const res = generateWeek(setups, { ...ctx, batches }, 1, fixed);
+    expectRulesHold(res, setups, batches);
+    expect(res.warnings.some((w) => /because batches and kept meals fill most lunches and dinners/.test(w))).toBe(true);
   });
 });
