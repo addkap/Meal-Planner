@@ -2,6 +2,7 @@
 // ingredients as she goes; effort comes from the total time unless she picks it.
 import { useMemo, useState } from 'react';
 import { useAppData } from '../AppData';
+import { BUILTIN_BY_ID } from '../data/recipes';
 import { useNav } from '../nav';
 import { saveMyRecipe } from '../store';
 import { newId } from '../lib/ids';
@@ -30,6 +31,8 @@ export default function RecipeEditorPage({ id, forBatch, onSaved }: { id?: strin
   const { recipes, foods } = useAppData();
   const { back } = useNav();
   const existing = id ? recipes.get(id) : undefined;
+  // A built-in recipe: her version is saved under the same id and replaces the original until she undoes it.
+  const builtin = id ? BUILTIN_BY_ID.get(id) : undefined;
   const [d, setD] = useState<RecipeDraft>(() => (existing ? recipeToDraft(existing) : emptyDraft()));
   const [keep, setKeep] = useState(true);
   const [showErrors, setShowErrors] = useState(false);
@@ -44,6 +47,7 @@ export default function RecipeEditorPage({ id, forBatch, onSaved }: { id?: strin
   async function save() {
     if (problems.length) { setShowErrors(true); return; }
     const r = draftToRecipe(d, foods, d.id ?? `mine-${newId()}`, Date.now(), forBatch ? !keep : false);
+    if (builtin) r.basedOn = builtin.id;
     await saveMyRecipe(r);
     if (onSaved) onSaved(r);
     else back();
@@ -52,7 +56,8 @@ export default function RecipeEditorPage({ id, forBatch, onSaved }: { id?: strin
   return (
     <>
       {!forBatch && <BackBar onBack={back} />}
-      <h1>{existing ? 'Edit recipe' : forBatch ? 'What did you make?' : 'Add a recipe'}</h1>
+      <h1>{builtin ? 'Change recipe' : existing ? 'Edit recipe' : forBatch ? 'What did you make?' : 'Add a recipe'}</h1>
+      {builtin && <p className="muted">Your changes are used everywhere this recipe appears, including plans and grocery lists. You can go back to the original from the recipe page.</p>}
 
       <section className="card">
         <label className="field"><span>Name</span><input value={d.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Mom's lentil soup" /></label>
@@ -127,7 +132,7 @@ export default function RecipeEditorPage({ id, forBatch, onSaved }: { id?: strin
         <label className="check-line"><input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} /> Also save it to My recipes, so the planner can suggest it</label>
       )}
       {showErrors && problems.map((p) => <p key={p} className="error">{p}</p>)}
-      <button className="btn primary big" onClick={() => void save()}>{forBatch ? 'Next' : 'Save recipe'}</button>
+      <button className="btn primary big" onClick={() => void save()}>{forBatch ? 'Next' : builtin ? 'Save changes' : 'Save recipe'}</button>
       {!forBatch && <button className="btn" onClick={back}>Cancel</button>}
     </>
   );

@@ -18,7 +18,7 @@ const FILTERS: { value: Filter; label: string }[] = [
 const FEEDBACK_TEXT = { more: 'Use more', less: 'Use less', never: "Don't use" } as const;
 
 export default function RecipesPage() {
-  const { pool, prefs, myIds, hiddenIds } = useAppData();
+  const { pool, prefs, myIds, hiddenIds, changedIds } = useAppData();
   const { open } = useNav();
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
@@ -40,7 +40,7 @@ export default function RecipesPage() {
         const pref = prefs.get(p.id);
         return (
           <button key={p.id} className="recipe-row" onClick={() => open({ name: 'recipe', recipeId: p.id })}>
-            <span className="meal-name">{pref?.favorite ? '★ ' : ''}{p.recipe.name}{myIds.has(p.id) ? ' (mine)' : ''}</span>
+            <span className="meal-name">{pref?.favorite ? '★ ' : ''}{p.recipe.name}{myIds.has(p.id) ? ' (mine)' : changedIds.has(p.id) ? ' (changed)' : ''}</span>
             <span className="meal-meta">
               <EffortBadge effort={p.effort} />
               <span>{minutesText(p.recipe.totalMin)}</span>

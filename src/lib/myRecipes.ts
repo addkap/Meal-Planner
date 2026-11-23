@@ -33,6 +33,33 @@ export function suggestProtein(r: Pick<Recipe, 'ingredients' | 'servings'>, food
 /** Diet tags the app works out (fish, legume, vegetarian, whole grains...), shown as suggestions. */
 export const suggestTags = (r: Pick<Recipe, 'ingredients' | 'servings'>, foods: FoodDb) => dietTags(dietProfile(r, foods));
 
+export interface RecipeSet {
+  /** Every recipe the app can show: built-ins (her changed version where she has one) plus all of hers. */
+  everything: Recipe[];
+  /** Her own recipes listed under "My recipes" (not batch-only, not deleted, not changed built-ins). */
+  myIds: Set<string>;
+  /** Her own recipes that are batch-only or deleted: kept for nutrition, never listed or planned. */
+  hiddenIds: Set<string>;
+  /** Built-in recipes she has changed. */
+  changedIds: Set<string>;
+}
+
+/**
+ * Puts the built-in recipes and hers together. A recipe of hers with a built-in recipe's id is her changed
+ * version of it and replaces it; once that is deleted ("Undo my changes"), the original is used again.
+ */
+export function combineRecipes(builtins: Recipe[], mine: MyRecipe[]): RecipeSet {
+  const builtinIds = new Set(builtins.map((r) => r.id));
+  const changed = new Map(mine.filter((r) => builtinIds.has(r.id) && !r.deletedAt).map((r) => [r.id, r]));
+  const own = mine.filter((r) => !builtinIds.has(r.id));
+  return {
+    everything: [...builtins.map((b) => changed.get(b.id) ?? b), ...own],
+    myIds: new Set(own.filter((r) => !r.deletedAt && !r.hidden).map((r) => r.id)),
+    hiddenIds: new Set(own.filter((r) => r.hidden || r.deletedAt).map((r) => r.id)),
+    changedIds: new Set(changed.keys()),
+  };
+}
+
 /** Hand tags she can add herself. */
 export const HAND_TAGS = [
   { id: 'batch-friendly', label: 'Good for batch cooking' },

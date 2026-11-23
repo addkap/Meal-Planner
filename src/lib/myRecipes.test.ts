@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BUILTIN_RECIPES } from '../data/recipes';
 import { buildGroceryList } from './grocery';
-import { draftProblems, draftToRecipe, recipeToDraft, suggestProtein, suggestTags, type RecipeDraft } from './myRecipes';
+import { combineRecipes, draftProblems, draftToRecipe, recipeToDraft, suggestProtein, suggestTags, type RecipeDraft } from './myRecipes';
 import { buildPool } from './pool';
 import { productToFood } from './openFoodFacts';
 import { recipeNutrition, scaleIngredients } from './recipes';
@@ -67,5 +67,63 @@ describe('her recipe works like a built-in one', () => {
     expect(p.weight).toBe(1.5);
     expect(p.meals).toEqual(['lunch', 'dinner']);
     expect(p.issues).toEqual([]);
+  });
+});
+
+describe('changing a built-in recipe', () => {
+  const original = BUILTIN_RECIPES.find((r) => r.ingredients.length >= 4)!;
+  /** Her version: drop the first ingredient and add spinach, saved under the built-in id. */
+  const changed = () => {
+    const d = recipeToDraft(original);
+    d.ingredients = [...d.ingredients.slice(1), { food: 'key:spinach', qty: 2, unit: 'cup' }];
+    return { ...draftToRecipe(d, foods, original.id, 1), basedOn: original.id };
+  };
+
+  it('her version replaces the original everywhere, under the same id', () => {
+    const set = combineRecipes(BUILTIN_RECIPES, [changed()]);
+    const byId = set.everything.filter((r) => r.id === original.id);
+    expect(byId).toHaveLength(1);
+    expect(byId[0].ingredients.map((i) => i.food)).toEqual([...original.ingredients.slice(1).map((i) => i.food), 'key:spinach']);
+    expect(set.everything).toHaveLength(BUILTIN_RECIPES.length);
+    expect(set.changedIds).toEqual(new Set([original.id]));
+  });
+
+  it('keeps the name, steps, protein, effort and about text', () => {
+    const r = changed();
+    expect(r).toMatchObject({ name: original.name, steps: original.steps, protein: original.protein, effort: original.effort, servings: original.servings, about: original.about });
+  });
+
+  it('is not listed under My recipes, not hidden, and not boosted like her own recipes', () => {
+    const set = combineRecipes(BUILTIN_RECIPES, [changed()]);
+    expect(set.myIds.has(original.id)).toBe(false);
+    expect(set.hiddenIds.has(original.id)).toBe(false);
+    const pool = buildPool(set.everything, foods, new Map(), set.myIds);
+    const before = buildPool(BUILTIN_RECIPES, foods).find((p) => p.id === original.id)!;
+    expect(pool.find((p) => p.id === original.id)!.weight).toBe(before.weight);
+  });
+
+  it('its nutrition and grocery list follow the new ingredients', () => {
+    const r = changed();
+    const spinach = scaleIngredients(r, r.servings).find((i) => i.food === 'key:spinach');
+    expect(spinach).toBeTruthy();
+    expect(recipeNutrition(r, foods).perServing.kcal.amount).not.toBe(recipeNutrition(original, foods).perServing.kcal.amount);
+  });
+
+  it('"Undo my changes" (deleting her version) brings the original back', () => {
+    const set = combineRecipes(BUILTIN_RECIPES, [{ ...changed(), deletedAt: 2 }]);
+    expect(set.everything.find((r) => r.id === original.id)).toBe(original);
+    expect(set.changedIds.size).toBe(0);
+    expect(set.hiddenIds.has(original.id)).toBe(false);
+  });
+
+  it('her own recipes still work as before', () => {
+    const mine = draftToRecipe(draft(), foods, 'mine-1', 1);
+    const gone = { ...draftToRecipe(draft(), foods, 'mine-2', 1), deletedAt: 5 };
+    const batchOnly = draftToRecipe(draft(), foods, 'mine-3', 1, true);
+    const set = combineRecipes(BUILTIN_RECIPES, [mine, gone, batchOnly]);
+    expect(set.everything).toHaveLength(BUILTIN_RECIPES.length + 3);
+    expect(set.myIds).toEqual(new Set(['mine-1']));
+    expect(set.hiddenIds).toEqual(new Set(['mine-2', 'mine-3']));
+    expect(set.changedIds.size).toBe(0);
   });
 });

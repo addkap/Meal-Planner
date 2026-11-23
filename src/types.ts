@@ -98,6 +98,11 @@ export interface MyRecipe extends Rec, Recipe {
   source: 'mine';
   /** Typed in only for a batch and not (yet) saved to "My recipes": not planned, not listed. */
   hidden?: boolean;
+  /**
+   * Her changed version of a built-in recipe. It has the same id as the built-in one, so plans, favorites,
+   * batches and grocery lists use it in place of the original. Deleting it brings the original back.
+   */
+  basedOn?: string;
 }
 
 export type Feedback = 'more' | 'less' | 'never';

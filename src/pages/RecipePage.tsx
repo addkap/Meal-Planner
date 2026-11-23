@@ -26,9 +26,10 @@ const FEEDBACK: { value: Feedback; label: string }[] = [
 ];
 
 export default function RecipePage({ recipeId, meal }: { recipeId: string; meal?: MealRef }) {
-  const { recipes, poolById, foods, settings, prefs, myIds } = useAppData();
+  const { recipes, poolById, foods, settings, prefs, myIds, changedIds } = useAppData();
   const { back, open } = useNav();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmUndo, setConfirmUndo] = useState(false);
   const plan = useLiveQuery(async () => (meal ? (await db.plans.get(meal.weekStart)) ?? null : null), [meal?.weekStart]);
   const planned = meal && plan ? plan.days.find((d) => d.date === meal.date)?.meals.find((m) => m.slot === meal.slot) : undefined;
   const [localPeople, setLocalPeople] = useState(settings.people);
@@ -80,6 +81,21 @@ export default function RecipePage({ recipeId, meal }: { recipeId: string; meal?
             );
           })}
         </ul>
+        <button className="btn" onClick={() => open({ name: 'recipe-edit', id: recipeId })}>Change ingredients or steps</button>
+        {changedIds.has(recipeId) && (
+          <div className="changed-note">
+            <p className="muted small">You changed this recipe from the original.</p>
+            {confirmUndo ? (
+              <>
+                <p>Go back to the original recipe? Your changes to the ingredients and steps will be removed.</p>
+                <div className="btns">
+                  <button className="btn danger" onClick={() => void deleteMyRecipe(recipeId).then(() => setConfirmUndo(false))}>Use the original</button>
+                  <button className="btn" onClick={() => setConfirmUndo(false)}>Cancel</button>
+                </div>
+              </>
+            ) : <button className="btn subtle" onClick={() => setConfirmUndo(true)}>Undo my changes</button>}
+          </div>
+        )}
       </section>
 
       <section className="card">
@@ -116,7 +132,6 @@ export default function RecipePage({ recipeId, meal }: { recipeId: string; meal?
       {myIds.has(recipeId) && (
         <section className="card">
           <h2>Your recipe</h2>
-          <button className="btn" onClick={() => open({ name: 'recipe-edit', id: recipeId })}>Edit this recipe</button>
           {confirmDelete ? (
             <>
               <p>Delete <b>{recipe.name}</b>? It will no longer be planned or listed. Days you already logged it keep their nutrition.</p>

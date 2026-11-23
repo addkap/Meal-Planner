@@ -10,6 +10,7 @@ import { buildPool, type PoolRecipe } from './lib/pool';
 import type { BatchInfo } from './lib/planner';
 import type { Batch, Recipe, RecipePref, Settings } from './types';
 import { normalizeAge } from './lib/dri';
+import { combineRecipes } from './lib/myRecipes';
 
 export interface AppData {
   foods: FoodDb;
@@ -24,6 +25,8 @@ export interface AppData {
   myIds: Set<string>;
   /** Recipes typed in only for a batch, or deleted: not listed and never planned. */
   hiddenIds: Set<string>;
+  /** Built-in recipes she has changed (her version is used everywhere until she undoes it). */
+  changedIds: Set<string>;
 }
 
 const Ctx = createContext<AppData | null>(null);
@@ -51,15 +54,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     if (!foods || !prefList || !mine || !customFoods || !batches) return null;
     foods.setCustomFoods(customFoods);
     const settings: Settings = settingsRow ? { ...DEFAULT_SETTINGS, ...settingsRow, age: normalizeAge(settingsRow.age), rules: { ...DEFAULT_SETTINGS.rules, ...settingsRow.rules } } : DEFAULT_SETTINGS;
-    const myLive = mine.filter((r) => !r.deletedAt);
-    const listed = myLive.filter((r) => !r.hidden); // batch-only recipes are not planned or listed
-    // Deleted recipes of hers stay readable for past days she logged them, but are not planned or listed.
-    const everything: Recipe[] = [...BUILTIN_RECIPES, ...mine];
     const prefs = new Map(prefList.filter((p) => !p.deletedAt).map((p) => [p.id, p]));
-    const myIds = new Set(listed.map((r) => r.id));
-    // Batch-only and deleted recipes stay in the pool (planned batch meals and past days need their nutrition)
-    // but are never listed or picked by the planner.
-    const hiddenIds = new Set(mine.filter((r) => r.hidden || r.deletedAt).map((r) => r.id));
+    // Deleted and batch-only recipes of hers stay in the pool (planned batch meals and past days need their
+    // nutrition) but are never listed or picked by the planner. Changed built-ins replace the original.
+    const { everything, myIds, hiddenIds, changedIds } = combineRecipes(BUILTIN_RECIPES, mine);
     const pool = buildPool(everything, foods, prefs, myIds).map((p) => (hiddenIds.has(p.id) ? { ...p, weight: 0 } : p));
     const liveBatches = batches.filter((b) => !b.deletedAt);
     return {
@@ -73,6 +71,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       batchInfo: liveBatches.map((b) => ({ id: b.id, recipeId: b.recipeId, cookedOn: b.cookedOn, cooked: b.cooked })),
       myIds,
       hiddenIds,
+      changedIds,
     };
   }, [foods, settingsRow, prefList, mine, customFoods, batches]);
 
