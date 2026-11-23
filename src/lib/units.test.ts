@@ -80,8 +80,8 @@ describe('toGrams', () => {
 
 describe('unitsFor', () => {
   it('lists counted units, kitchen volumes when the density is known, and weights', () => {
-    expect(unitsFor(food([['cup', 100], ['slice', 30]]))).toEqual(['slice', 'cup', 'tbsp', 'tsp', 'g', 'oz']);
-    expect(unitsFor(food([['oz', 28]]))).toEqual(['g', 'oz']);
+    expect(unitsFor(food([['cup', 100], ['slice', 30]]))).toEqual(['slice', 'cup', 'tbsp', 'tsp', 'g', 'oz', 'lb']);
+    expect(unitsFor(food([['oz', 28]]))).toEqual(['g', 'oz', 'lb']);
   });
 });
 

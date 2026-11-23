@@ -138,7 +138,10 @@ function SearchStep({ customFoods, onPick, onScan, onTypeBarcode, onLabel, onOnl
       rows.push({ id: f.ref, name: f.name, boost: 3, sub: c.source === 'scanned' ? 'Scanned' : 'Your food', pick: { type: 'food', food: f } });
     }
     for (const r of recipes.values()) if (!hiddenIds.has(r.id) && !(r as { deletedAt?: number }).deletedAt) rows.push({ id: r.id, name: r.name, boost: -2, sub: 'Recipe, per serving', pick: { type: 'recipe', recipe: r } }); // plain foods first
-    for (const f of foods.usda.values()) rows.push({ id: f.ref, name: f.name, boost: 0, sub: f.group, pick: { type: 'food', food: f } });
+    for (const { food: f, boost } of foods.searchable()) {
+      if (f.source !== 'usda') continue; // her own foods are already listed above
+      rows.push({ id: f.ref, name: f.name, boost, sub: f.ref.startsWith('key:') ? 'Everyday food' : f.group, pick: { type: 'food', food: f } });
+    }
     return makeIndex(rows);
   }, [customFoods, foods, recipes, hiddenIds]);
   const results = search(q, 40);

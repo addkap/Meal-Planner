@@ -61,6 +61,23 @@ export class FoodDb {
   all(): Food[] {
     return [...this.usda.values(), ...this.custom.values()];
   }
+
+  /**
+   * Foods to offer in searches: her own and scanned foods, the everyday foods the built-in recipes use under
+   * their friendly names ("Extra-virgin olive oil", "Onion"), then the rest of the USDA list.
+   * `boost` ranks them in that order.
+   */
+  searchable(): { food: Food; boost: number }[] {
+    const out: { food: Food; boost: number }[] = [...this.custom.values()].map((food) => ({ food, boost: 3 }));
+    const keyed = new Set<number>();
+    for (const name of Object.keys(FOOD_KEYS) as FoodKeyName[]) {
+      if (FOOD_KEYS[name].noGrocery) continue;
+      const f = this.get(`key:${name}`);
+      if (f) { out.push({ food: f, boost: 2 }); keyed.add(FOOD_KEYS[name].id); }
+    }
+    for (const [id, food] of this.usda) out.push({ food, boost: keyed.has(id) ? -1 : 0 });
+    return out;
+  }
 }
 
 export function customToFood(c: CustomFood): Food {

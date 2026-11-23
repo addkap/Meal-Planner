@@ -2,7 +2,7 @@
 
 A weekly Mediterranean / Blue Zone meal planner, grocery list and nutrition tracker, built for one person to use on an iPhone. It is an installable web app (PWA), set up the same way as Lift Log: React + TypeScript + Vite, data saved on the phone first, a background copy in her OneDrive folder, and free hosting on GitHub Pages. There is no server and no account.
 
-> **Status: phase 5 of 8.** The data model, food database, recipe library, planner, Plan screen, recipe pages, grocery lists and the Today tab (daily log, nutrition, barcode scanning) work. More is a placeholder until phases 7 and 8.
+> **Status: phase 6 of 8.** Planning, recipes, groceries, the Today tab with barcode scanning, batch cooking and her own recipes all work. The weight tracker (phase 7) and Settings and OneDrive sync (phase 8) are next.
 
 | Phase | What | Status |
 |---|---|---|
@@ -11,7 +11,7 @@ A weekly Mediterranean / Blue Zone meal planner, grocery list and nutrition trac
 | 3 | Meal plan screen and recipe pages | done |
 | 4 | Grocery lists by store | done |
 | 5 | Daily log, nutrition summary, barcode scanning | done |
-| 6 | Batch cooking and her own recipes | |
+| 6 | Batch cooking and her own recipes | done |
 | 7 | Weight tracker | |
 | 8 | Settings, OneDrive sync, polish, install steps | |
 
@@ -218,6 +218,51 @@ These are the choices made so far, and why.
 - Then each nutrient **per serving, as printed**. A blank box means "not listed". Values are stored per 100 g like every other food.
 
 Scanned and typed-in foods can also be used as ingredients in her own recipes (phase 6).
+
+### Batch cooking (phase 6, `src/lib/batch.ts`)
+**"I made a batch"** (on the Plan tab and under More, then Your batches)
+1. **What she made:** a recipe from the library or hers (batch-friendly ones first), or **type in the recipe** from scratch. A typed-in recipe can also be saved to My recipes, or kept just for this batch.
+2. **The batch:** how many servings she made, the day she cooked it (or will cook it), and how many servings to freeze.
+3. **Which meals it covers:** only meals the recipe suits (egg bites: breakfast or snack), from the cooking day on, never meals she is keeping, and snacks only on snack days.
+   - The app starts with up to four of its own meal type. **Fill any that fit** spreads the servings over the week, one per day before doubling up.
+   - She can tap meals on and off. It warns if she picks more meals than she has servings.
+
+**Re-planning around it**
+- The batch servings take over those meals. The rest of the week is re-balanced (`rebalanceWeek`): kept meals stay, other recipes are kept where the rules still allow, and calories, fiber and the diet rules are re-checked.
+- The batch counts toward the week's rules: fish, poultry and red meat, eggs, and beans or legumes.
+- If the batch itself breaks a rule (10 egg-bite meals is more than the 4 egg meals the plan allows), the plan says so and adds no other egg dishes.
+
+**Servings left** ("7 of 8 left · 1 in the freezer · 2 planned")
+- Counted from the daily log, never stored separately: eating a batch meal, or logging a batch serving from the food logger, uses it up. Half a serving uses half, and un-checking gives it back.
+- She is warned when more meals are planned than servings are left (with a nudge to take some out of the freezer) and when only one serving is left.
+- **Leftovers** stay available after the week. The Plan tab shows "You have N unplanned servings… Use them this week" for any later week.
+- **Your batches** has: put servings in this week's plan, take one out of or put one in the freezer, "I cooked it" (for a batch planned ahead), "It's all gone", and "Save this as a recipe" for a typed-in one.
+
+**Everything else counts it too**
+- **Groceries:** a batch not cooked yet adds its whole recipe, scaled to the batch size. A cooked one adds nothing.
+- **Nutrition:** each batch serving uses the recipe's per-serving numbers.
+- **Cooking day:** cooking it counts as cooking on that day (hands-on time). Eating it later takes none.
+- **Food logger:** cooked batches with servings left appear at the top.
+
+**Check-offs follow the exact meal:** if the plan changes after she checked a meal off, what she ate stays logged and the new meal starts unchecked.
+
+### Her own recipes (phase 6, `src/lib/myRecipes.ts`)
+**Adding one** (Recipes, then + Add a recipe)
+- Name, meal type, other meals it suits, servings, and hands-on and total minutes.
+- **Effort:** worked out from the total time unless she picks one.
+- **Ingredients:** from the food list with an amount and unit, including her scanned and typed-in foods. The search shows the everyday names the built-in recipes use first ("Extra-virgin olive oil"), and phrases count ("olive oil").
+- **Steps:** one per line.
+- **Main protein:** suggested from the biggest protein ingredient (meat and fish beat a sprinkle of cheese). She can change it.
+- **Tags:** diet tags are worked out from the ingredients. She can add "Good for batch cooking", "Make ahead", "Freezes well", "No cooking" and "Treat".
+- **Nutrition per serving** is shown as she types.
+- If the recipe breaks a diet rule, she sees why before saving, for example a butter-based fat.
+
+**How they are used**
+- Treated exactly like built-in recipes: nutrition from the ingredients, scaling, grocery list, the "Use more / Use less / Don't use again" buttons, and favorites.
+- **In the planner:** 1.5x as likely to be picked, 2.5x more as a favorite. A recipe that breaks the rules is not planned as a regular meal, and its page says why. A dessert can still come up as an occasional snack.
+- **My recipes** has its own filter. She can edit or delete each one.
+- **Deleting:** a deleted recipe is no longer listed or planned, but meals already planned or eaten keep their nutrition.
+- Units now include pounds (lb) for meat.
 
 ### Forms
 - **Never blocked silently:** number boxes accept decimals (1.4 mg of iron), and no form is held back by the browser's built-in checks without saying why. The app shows its own message instead.

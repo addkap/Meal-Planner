@@ -21,7 +21,7 @@ export interface AppData {
   batchInfo: BatchInfo[];
   /** Ids of her own recipes (listed under "My recipes"; batch-only ones are not). */
   myIds: Set<string>;
-  /** Recipes typed in only for a batch: not listed and never planned. */
+  /** Recipes typed in only for a batch, or deleted: not listed and never planned. */
   hiddenIds: Set<string>;
 }
 
@@ -52,14 +52,14 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     const settings: Settings = settingsRow ? { ...DEFAULT_SETTINGS, ...settingsRow, rules: { ...DEFAULT_SETTINGS.rules, ...settingsRow.rules } } : DEFAULT_SETTINGS;
     const myLive = mine.filter((r) => !r.deletedAt);
     const listed = myLive.filter((r) => !r.hidden); // batch-only recipes are not planned or listed
-    const all: Recipe[] = [...BUILTIN_RECIPES, ...myLive];
     // Deleted recipes of hers stay readable for past days she logged them, but are not planned or listed.
     const everything: Recipe[] = [...BUILTIN_RECIPES, ...mine];
     const prefs = new Map(prefList.filter((p) => !p.deletedAt).map((p) => [p.id, p]));
     const myIds = new Set(listed.map((r) => r.id));
-    // Batch-only recipes stay in the pool (batch meals need their nutrition) but are never picked by the planner.
-    const hiddenIds = new Set(myLive.filter((r) => r.hidden).map((r) => r.id));
-    const pool = buildPool(all, foods, prefs, myIds).map((p) => (hiddenIds.has(p.id) ? { ...p, weight: 0 } : p));
+    // Batch-only and deleted recipes stay in the pool (planned batch meals and past days need their nutrition)
+    // but are never listed or picked by the planner.
+    const hiddenIds = new Set(mine.filter((r) => r.hidden || r.deletedAt).map((r) => r.id));
+    const pool = buildPool(everything, foods, prefs, myIds).map((p) => (hiddenIds.has(p.id) ? { ...p, weight: 0 } : p));
     const liveBatches = batches.filter((b) => !b.deletedAt);
     return {
       foods,

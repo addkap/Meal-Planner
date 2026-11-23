@@ -25,9 +25,15 @@ const EFFORT_OPTIONS: { value: Effort; label: string }[] = [
   { value: 'long', label: 'Time-consuming' },
 ];
 const newSeed = () => Math.floor(Math.random() * 1e9);
+/** The week the Plan tab shows, kept for this visit only. */
+export const PLAN_WEEK_KEY = 'meal-planner-plan-week';
 
 export default function PlanPage() {
-  const [weekStart, setWeekStart] = useState(() => weekStartOf(todayLocal()));
+  // Remember the week she was looking at while the app is open (e.g. after placing batch servings in next week).
+  const [weekStart, setWeekStartState] = useState(() => {
+    try { return sessionStorage.getItem(PLAN_WEEK_KEY) ?? weekStartOf(todayLocal()); } catch { return weekStartOf(todayLocal()); }
+  });
+  const setWeekStart = (w: string) => { setWeekStartState(w); try { sessionStorage.setItem(PLAN_WEEK_KEY, w); } catch { /* ignore */ } };
   const [editing, setEditing] = useState(false);
   const plan = useLiveQuery(async () => (await db.plans.get(weekStart)) ?? null, [weekStart]);
   const thisWeek = weekStartOf(todayLocal());

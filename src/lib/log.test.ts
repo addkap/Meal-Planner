@@ -83,6 +83,11 @@ describe('searching foods by name', () => {
     expect(search('cheddar cheese').every((f) => /cheddar/i.test(f.name))).toBe(true);
     expect(search('eggs').some((f) => /^Egg, whole/.test(f.name))).toBe(true); // plural finds singular
   });
+  it('offers the friendly everyday names first', () => {
+    const s = makeIndex(foods.searchable().map(({ food, boost }) => ({ id: food.ref, name: food.name, boost })));
+    expect(s('olive oil')[0].name).toBe('Extra-virgin olive oil');
+    expect(s('onion')[0].name).toBe('Onion');
+  });
   it('returns nothing for an empty search and caps the list', () => {
     expect(search('   ')).toEqual([]);
     expect(search('a').length).toBeLessThanOrEqual(40);

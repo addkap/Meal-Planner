@@ -141,7 +141,7 @@ function IngredientPicker({ onAdd }: { onAdd: (ing: { food: string; qty: number;
   const [qty, setQty] = useState('1');
   const [unit, setUnit] = useState('cup');
   const [note, setNote] = useState('');
-  const search = useMemo(() => makeIndex(foods.all().map((f) => ({ id: f.ref, name: f.name, boost: f.source === 'usda' ? 0 : 3, food: f }))), [foods]);
+  const search = useMemo(() => makeIndex(foods.searchable().map(({ food: f, boost }) => ({ id: f.ref, name: f.name, boost, food: f }))), [foods]);
   const results = food ? [] : search(q, 12);
   const grams = food ? toGrams(food, Number(qty), unit) : null;
 
@@ -176,7 +176,7 @@ function IngredientPicker({ onAdd }: { onAdd: (ing: { food: string; qty: number;
           setUnit(units.includes('serving') && r.food.source !== 'usda' ? 'serving' : units.includes('medium') ? 'medium' : units.includes('cup') ? 'cup' : units[0]);
         }}>
           <span className="meal-name">{r.name}</span>
-          <span className="muted small">{r.food.source === 'usda' ? r.food.group : r.food.source === 'scanned' ? 'Scanned' : 'Your food'}</span>
+          <span className="muted small">{r.food.ref.startsWith('key:') ? 'Everyday food' : r.food.source === 'usda' ? r.food.group : r.food.source === 'scanned' ? 'Scanned' : 'Your food'}</span>
         </button>
       ))}
     </div>

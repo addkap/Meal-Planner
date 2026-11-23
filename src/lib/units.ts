@@ -94,7 +94,7 @@ export function unitsFor(food: Pick<Food, 'portions'>): string[] {
   const out = new Set<string>();
   for (const p of food.portions) if (!isMass(p.unit) && !isVolume(p.unit)) out.add(p.unit);
   if (food.portions.some((p) => isVolume(p.unit))) ['cup', 'tbsp', 'tsp'].forEach((u) => out.add(u));
-  ['g', 'oz'].forEach((u) => out.add(u));
+  ['g', 'oz', 'lb'].forEach((u) => out.add(u));
   return [...out];
 }
 

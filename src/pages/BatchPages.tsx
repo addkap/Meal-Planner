@@ -13,6 +13,7 @@ import { rebalanceWeek } from '../lib/planner';
 import { makeIndex } from '../lib/search';
 import { BackBar, EffortBadge, kcalText, Stepper } from '../components/ui';
 import RecipeEditorPage from './RecipeEditorPage';
+import { PLAN_WEEK_KEY } from './PlanPage';
 import type { Batch, MealSlot, WeekPlan } from '../types';
 
 const SLOT_LABEL: Record<MealSlot, string> = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack' };
@@ -125,6 +126,7 @@ function SlotPicker({ title, batch, available, weekStart: start, from, onDone, c
       await savePlan({ ...plan, days: res.days, warnings: res.warnings });
     }
     setBusy(false);
+    try { sessionStorage.setItem(PLAN_WEEK_KEY, weekStart); } catch { /* ignore */ }
     onDone();
     setTab('Plan');
   }

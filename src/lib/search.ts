@@ -23,6 +23,7 @@ export function makeIndex<T extends Searchable>(items: T[]) {
         if (at === 1) score += 4; // the name starts with it
       }
       if (!ok) continue;
+      if (words.length > 1 && r.text.includes(` ${words.join(' ')}`)) score += 5; // the words together, in order ("olive oil")
       score += (r.item.boost ?? 0) - r.text.length / 40;
       scored.push({ item: r.item, score });
     }
