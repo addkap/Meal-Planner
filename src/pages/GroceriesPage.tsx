@@ -225,7 +225,7 @@ function ItemRow({ s, weekStart, stores, storeName }: { s: ItemState; weekStart:
   );
 }
 
-function StoresEditor({ stores }: { stores: Store[] }) {
+export function StoresEditor({ stores }: { stores: Store[] }) {
   const [name, setName] = useState('');
   const [editing, setEditing] = useState<string | null>(null);
   const [editName, setEditName] = useState('');

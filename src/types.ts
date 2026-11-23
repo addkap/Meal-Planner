@@ -245,3 +245,19 @@ export interface DietRules {
   legumeDaysMin: number; // days per week with beans or legumes
   eggMealsMax: number;
 }
+
+// ---------------------------------------------------------------- OneDrive sync settings (this device only, never uploaded)
+
+/** The OneDrive folder that holds meal-planner-data.json. */
+export interface FolderRef {
+  driveId: string;
+  itemId: string;
+  name: string;
+}
+
+export interface SyncMeta {
+  id: 'sync';
+  folder?: FolderRef;
+  syncedSig?: string; // fingerprint of the data as of the last successful sync (see merge.ts: signature)
+  lastSync?: number; // time of the last successful sync
+}

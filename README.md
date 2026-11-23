@@ -2,7 +2,7 @@
 
 A weekly Mediterranean / Blue Zone meal planner, grocery list and nutrition tracker, built for one person to use on an iPhone. It is an installable web app (PWA), set up the same way as Lift Log: React + TypeScript + Vite, data saved on the phone first, a background copy in her OneDrive folder, and free hosting on GitHub Pages. There is no server and no account.
 
-> **Status: phase 7 of 8.** Planning, recipes, groceries, the Today tab with barcode scanning, batch cooking, her own recipes and the weight tracker all work. Settings and OneDrive sync (phase 8) are next.
+> **Status: all 8 phases built and tested.** Three things are left for you, in the steps below: register the app with Microsoft (for OneDrive), publish the site, and put it on your mom's iPhone.
 
 | Phase | What | Status |
 |---|---|---|
@@ -13,7 +13,7 @@ A weekly Mediterranean / Blue Zone meal planner, grocery list and nutrition trac
 | 5 | Daily log, nutrition summary, barcode scanning | done |
 | 6 | Batch cooking and her own recipes | done |
 | 7 | Weight tracker | done |
-| 8 | Settings, OneDrive sync, polish, install steps | |
+| 8 | Settings, OneDrive sync, polish, install steps | done |
 
 ---
 
@@ -34,6 +34,88 @@ It uses ports **5176** and **4176**, so it can run at the same time as Lift Log 
 
 ---
 
+## Setting it up for your mom
+
+Do these in order. It is the same routine as Lift Log, with this app's own names.
+
+### Step 1: Register the app with Microsoft (once, about 10 minutes)
+This app gets **its own** Microsoft app registration, like Erika's copy, so its sign-in never mixes with the Lift Log apps. A test checks that it is not one of their IDs.
+
+1. Go to <https://entra.microsoft.com> and sign in with the same personal Microsoft account you used for the Lift Log registrations.
+2. **Entra ID** → **App registrations** → **New registration**.
+3. Fill in:
+   - **Name:** `Meal Planner`
+   - **Supported account types:** **Personal Microsoft accounts only**
+   - **Redirect URI:** platform **Single-page application (SPA)**, value `https://addkap.github.io/Meal-Planner/`
+4. Click **Register**, then copy the **Application (client) ID** from the Overview page.
+5. Left menu → **Authentication** → under **Single-page application** → **Add URI**. Add these two only if you want to test sign-in on your computer:
+   - `http://localhost:5176/`
+   - `http://localhost:4176/`
+
+   Then **Save**. Every address must match exactly: `https`, the capital M and P in `Meal-Planner`, and the final `/`.
+6. Left menu → **API permissions** → **Add a permission** → **Microsoft Graph** → **Delegated permissions** → tick **`Files.ReadWrite`** → **Add permissions**.
+7. Open `src/config.ts` and paste the ID between the quotes: `export const MS_CLIENT_ID: string = 'paste-it-here';`. It is not a secret, so it is fine in the public repository.
+8. Run `npm test`, then commit and push.
+
+Until you do this, the app works normally and Settings says sync is not set up yet.
+
+### Step 2: Publish the site (GitHub Pages)
+The repository is `addkap/Meal-Planner`. The work is on the `meal-planner-build` branch. The site is published from `main`.
+
+1. On GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+2. In a terminal:
+
+   ```bash
+   cd ~/Projects/Meal-Planner
+   git status                      # should say "nothing to commit"
+   git checkout main
+   git merge meal-planner-build
+   git push -u origin main
+   ```
+
+3. Open the repository's **Actions** tab. When **Deploy to GitHub Pages** has a green tick (about a minute), the site is live at **`https://addkap.github.io/Meal-Planner/`**. The workflow runs all the tests first, so a broken change is never published.
+4. Optional: in **Settings → General**, make `main` the default branch and delete `meal-planner-build`.
+
+**Updating later:** change things on `main`, then `git add -A`, `git commit -m "what changed"`, `git push`. Her phone picks up the new version the next time she opens the app (close it fully and reopen once or twice).
+
+### Step 3: Put it on your mom's iPhone
+1. On her iPhone, open **Safari** (not another browser) and go to `https://addkap.github.io/Meal-Planner/`.
+2. Tap **Share** (the square with an arrow pointing up).
+3. Scroll down and tap **Add to Home Screen** (tap **View More** first if it is not there).
+4. Keep the name **Meals** and tap **Add**.
+5. Close Safari. From now on she opens **Meals** from the new Home Screen icon. It opens full-screen.
+
+Why this matters (the same as Lift Log):
+- iOS can delete the saved data of websites that go unused for a while. Home Screen apps are exempt. Settings → **Phone storage** says "Protected" once the phone agrees.
+- The Home Screen app has its own storage, separate from Safari. Do everything, including the OneDrive sign-in, **inside the Home Screen app**.
+
+### Step 4: Connect her OneDrive folder
+Her OneDrive owns the folder, so it is in her **My files**.
+
+1. In OneDrive on her phone or at <https://onedrive.live.com>, make a folder for the app, for example **Meal Planner**. The app only ever touches one file in it, `meal-planner-data.json`.
+2. In the Home Screen app: **More → Settings → OneDrive sync → Sign in with Microsoft**. She signs in with her own Microsoft account and approves the permission screen. It asks for OneDrive access because Microsoft has no narrower permission; the app's code only touches its one file.
+3. Back in Settings: **Choose the data folder** → tap **Use this folder** next to "Meal Planner" (tap **Open** to look inside other folders). The app creates `meal-planner-data.json` there and syncs.
+4. The bar under the header says **Synced**, **Not synced yet** (tap it to sync), or **Tap to sync**. "Tap to sync" means the roughly 24-hour Microsoft sign-in expired; one tap signs in again and nothing is lost.
+
+**If you want to see or help with her data:** she shares the folder with your Microsoft account (OneDrive → Share → your email → **Can edit**) and sends you the link. On your phone: Settings → Sign in with Microsoft → Choose the data folder → paste the link under **A folder shared with me**. Edits from either phone merge; the newest change wins.
+
+**Backups:** Settings → **Export backup** saves everything to one file. **Import backup** merges a file back in and never wipes what is on the phone. Lift Log files are refused on purpose.
+
+### Step 5: Quick checks on her phone
+1. **Offline:** open the app once with internet, turn on Airplane Mode, and reopen it. Plans, recipes, groceries and logging all work. Search uses the saved food list.
+2. **Barcode camera** (not tested yet: my test browser blocks cameras):
+   - On Today, tap **Log something else → Scan barcode**. Allow the camera when asked, and point it at a packaged food. Its name and nutrition should appear.
+   - If iOS blocked the camera: iPhone **Settings → Safari → Camera → Allow**.
+   - Typing the barcode number always works.
+3. **Sync:** after Step 4, log something, wait a few seconds, and check that the bar says **Synced**.
+
+### Troubleshooting
+- **"Redirect URI mismatch" when signing in:** the address in the address bar must be listed exactly in Step 1.5, including `https`, `Meal-Planner` with capitals, and the final `/`.
+- **"Does not exist in tenant 'Microsoft Services'":** the registration must allow personal Microsoft accounts (Step 1.3).
+- **Blank page on GitHub Pages:** check the Actions tab for a red run. The address must end in `/Meal-Planner/`, which follows the repository name.
+- **The phone shows an old version:** close the app completely and open it again.
+- **Running it next to Lift Log on your computer:** this app uses ports 5176 and 4176, so both can run at once.
+
 ## Decisions
 
 These are the choices made so far, and why.
@@ -42,7 +124,7 @@ These are the choices made so far, and why.
 - **Stack:** React 19, TypeScript, Vite, `vite-plugin-pwa` (installable, works offline), Dexie (the on-phone database), MSAL (Microsoft sign-in), Recharts (charts), Vitest (tests). Same versions as Lift Log.
 - **Deploy:** the same GitHub Actions workflow (`.github/workflows/deploy.yml`). It runs the tests, builds, and publishes to `https://addkap.github.io/Meal-Planner/` on every push to `main`.
 - **Its own names everywhere.** This app shares the `addkap.github.io` website with Lift Log and Erika's Lift Log, and a browser shares storage across a whole website. So, like Erika's copy, every storage name is different, and every localStorage key (including the Microsoft sign-in cache) is stored with a `meal-planner:` prefix (`src/appIdentity.ts`, `src/installStorageNamespace.ts`). A test checks that no name matches either Lift Log app.
-- **Its own Microsoft app registration**, like Erika's copy. The client ID goes in `src/config.ts` in phase 8. Until then sync shows as "not set up".
+- **Its own Microsoft app registration**, like Erika's copy (Step 1 above). Until its client ID is in `src/config.ts`, sync shows as "not set up" and everything else works.
 - **Repository:** `addkap/Meal-Planner`, public. Work is on the `meal-planner-build` branch until it has been reviewed.
 
 ### Look
@@ -281,6 +363,25 @@ Scanned and typed-in foods can also be used as ingredients in her own recipes (p
 - Tapping shows a tooltip.
 - The colors were checked with the dataviz palette validator: they pass the colorblind and normal-vision separation checks. The sky dots are faint on white, so there is a legend, and every weigh-in is also listed under the chart.
 
+### Settings, sync and backup (phase 8)
+**Settings** (More → Settings)
+- Daily calorie and fiber targets.
+- Sex and age range, for the vitamin and mineral targets.
+- Default number of people.
+- Diet rules: fish and poultry at least / at most, red meat at most, days with legumes, and egg meals. There is a button to go back to the Mediterranean defaults.
+- Stores: the same editor as on the Groceries tab.
+- **Recipe feedback review:** every "Use more / Use less / Don't use again" and favorite, each undoable with one tap.
+- Weight unit, OneDrive sync, backup, and whether phone storage is protected.
+
+**OneDrive sync** (`src/sync/`)
+- Lift Log's sync code, reused (MSAL redirect sign-in for personal accounts, Microsoft Graph, one JSON file in the chosen folder, newest-change-wins merge with deletions remembered, an eTag check so two phones saving at once never overwrite each other, background sync after changes, on reopen and when the signal returns).
+- The merge now covers all 12 kinds of records this app keeps, including settings, plans, recipes, foods, batches, logs, stores, grocery check-offs and weigh-ins. Device-only things (which folder) are never uploaded.
+- The file is `meal-planner-data.json`, tagged so neither app can read the other's file.
+- A phone with no data pulls everything first. The sync bar sits under the header.
+- **Tests:** two phones saving at the same moment, deletions not coming back, an expired sign-in losing nothing, giving up safely after repeated conflicts, every table merging, and refusing Lift Log files.
+
+**Backup:** export and import of the same JSON format. Importing merges and never wipes. The message names what was saved or restored ("It has 3 weekly plans, 42 logged meals and foods and 1 weigh-in.").
+
 ### Forms
 - **Never blocked silently:** number boxes accept decimals (1.4 mg of iron), and no form is held back by the browser's built-in checks without saying why. The app shows its own message instead.
 
@@ -293,6 +394,8 @@ Scanned and typed-in foods can also be used as ingredients in her own recipes (p
 - `src/data/recipes/` the built-in recipe library
 - `src/db.ts`, `src/store.ts` the on-phone database and the actions that change it
 - `src/AppData.tsx` shared data for the screens (foods, recipes, planner pool, settings)
+- `src/sync/` OneDrive: sign-in (`auth.ts`), Graph calls (`graph.ts`), merge rules (`merge.ts`), sync engine (`engine.ts`), the same design as Lift Log
+- `src/config.ts` the Microsoft client ID goes here
 - `src/pages/`, `src/components/` the screens
 - `public/data/foods.json` the trimmed USDA database (generated by `scripts/build-foods.ts`)
 - `scripts/make-icons.mjs` redraws the app icons (`node scripts/make-icons.mjs`)

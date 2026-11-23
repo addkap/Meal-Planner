@@ -9,6 +9,10 @@ import TodayPage from './pages/TodayPage';
 import LogFoodPage from './pages/LogFoodPage';
 import MorePage from './pages/MorePage';
 import WeightPage from './pages/WeightPage';
+import SettingsPage from './pages/SettingsPage';
+import SyncChip from './components/SyncChip';
+import { RETURN_TAB_KEY } from './appIdentity';
+import { initialPullIfEmpty, startAutoSync } from './sync/engine';
 import RecipeEditorPage from './pages/RecipeEditorPage';
 import { BatchesPage, BatchNewPage, BatchPlanPage } from './pages/BatchPages';
 
@@ -26,8 +30,16 @@ function useOnline(): boolean {
 }
 
 export default function App() {
-  const [tab, setTabState] = useState<Tab>('Plan');
-  const [stack, setStack] = useState<Route[]>([]);
+  // After coming back from the Microsoft sign-in page, reopen Settings.
+  const returnTo = (() => { try { return localStorage.getItem(RETURN_TAB_KEY); } catch { return null; } })();
+  const [tab, setTabState] = useState<Tab>(returnTo === 'settings' ? 'More' : 'Plan');
+  const [stack, setStack] = useState<Route[]>(returnTo === 'settings' ? [{ name: 'settings' }] : []);
+
+  // Background OneDrive sync (local-first: nothing waits for it). A phone with no data pulls first.
+  useEffect(() => {
+    try { localStorage.removeItem(RETURN_TAB_KEY); } catch { /* ignore */ }
+    void Promise.race([initialPullIfEmpty().catch(() => {}), new Promise((r) => setTimeout(r, 7000))]).then(() => startAutoSync());
+  }, []);
   const online = useOnline();
 
   const nav = useMemo<Nav>(() => ({
@@ -44,6 +56,7 @@ export default function App() {
       <header className="banner-top">
         <span className="brand">Meal Planner</span>
       </header>
+      <SyncChip />
       {!online && <p className="offline" role="status">Offline: everything still saves on this phone.</p>}
       <main className="page">
         <AppDataProvider>
@@ -57,6 +70,8 @@ export default function App() {
             <BatchNewPage />
           ) : top?.name === 'batch-plan' ? (
             <BatchPlanPage key={top.batchId + (top.weekStart ?? '')} batchId={top.batchId} weekStart={top.weekStart} />
+          ) : top?.name === 'settings' ? (
+            <SettingsPage />
           ) : top?.name === 'weight' ? (
             <WeightPage />
           ) : top?.name === 'recipe-edit' ? (

@@ -237,3 +237,19 @@ textarea { width: 100%; padding: 10px 14px; border: 2px solid #9fb3c8; border-ra
 .chart { margin: 0 -6px; }
 .weigh-row { padding: 6px 0; border-bottom: 1px solid #e3eef3; }
 input[type="date"] { min-height: 54px; padding: 8px 12px; border: 2px solid #9fb3c8; border-radius: 12px; font-size: 19px; background: #fff; width: 100%; }
+
+/* ---- settings and sync ---- */
+.rule-row { padding: 6px 0; border-bottom: 1px solid #e3eef3; }
+.fb-row { padding: 6px 0; border-bottom: 1px solid #e3eef3; }
+.syncbar { display: block; width: 100%; min-height: 44px; border: 0; font: inherit; font-size: 17px; font-weight: 700; cursor: pointer; }
+.syncbar.ok { background: #e7f5ec; color: var(--ok); }
+.syncbar.warn { background: var(--warn-bg); color: var(--warn-text); }
+.syncbar.bad { background: #fde8e8; color: var(--err); }
+.syncbar.busy { background: var(--wash); color: var(--blue); }
+.banner { border-radius: 10px; padding: 8px 12px; font-weight: 600; }
+.banner.err { background: #fde8e8; color: var(--err); }
+.banner.ok { background: #e7f5ec; color: var(--ok); }
+.folder-row { padding: 8px 0; border-bottom: 1px solid #e3eef3; }
+.btn.small { min-height: 48px; }
+input.text { width: 100%; min-height: 54px; padding: 10px 14px; border: 2px solid #9fb3c8; border-radius: 12px; font-size: 19px; }
+.label { display: block; font-weight: 600; margin: 10px 0 4px; }

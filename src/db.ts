@@ -2,9 +2,7 @@
 // Every table that syncs holds records with an id and updatedAt (see src/types.ts).
 import Dexie, { type Table } from 'dexie';
 import { DB_NAME } from './appIdentity';
-import type { Batch, CustomFood, DayTargets, GroceryMark, LogEntry, MyRecipe, RecipePref, Settings, Store, StoreAssignment, WeekPlan, WeighIn } from './types';
-
-export interface MetaRow { id: string; [k: string]: unknown }
+import type { Batch, CustomFood, DayTargets, GroceryMark, LogEntry, MyRecipe, RecipePref, Settings, Store, StoreAssignment, SyncMeta, WeekPlan, WeighIn } from './types';
 
 class MealDB extends Dexie {
   settings!: Table<Settings, string>;
@@ -19,7 +17,7 @@ class MealDB extends Dexie {
   storeAssignments!: Table<StoreAssignment, string>;
   groceryMarks!: Table<GroceryMark, string>;
   weighIns!: Table<WeighIn, string>;
-  meta!: Table<MetaRow, string>; // this device only (sync folder etc.), never uploaded
+  meta!: Table<SyncMeta, string>; // this device only (sync folder etc.), never uploaded
 
   constructor() {
     super(DB_NAME);

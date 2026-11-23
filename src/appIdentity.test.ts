@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import * as mine from './appIdentity';
 import { installStorageNamespace } from './installStorageNamespace';
+import { MS_CLIENT_ID, DATA_FILE_NAME as configFile } from './config';
 
 // Lift Log, Erika's Lift Log and this app are on the same website (addkap.github.io), so they share
 // the browser's storage. These checks prove every name this app uses is different from theirs.
@@ -53,5 +54,18 @@ describe('private storage is switched on at start-up', () => {
     expect([...real.keys()]).toEqual([`${mine.STORAGE_PREFIX}msal.x`]);
     expect(installStorageNamespace(win)).toBe(true);
     expect((new win.BroadcastChannel('msal.broadcast.cache') as unknown as { name: string }).name).toBe(`${mine.BROADCAST_PREFIX}msal.broadcast.cache`);
+  });
+});
+
+describe('OneDrive and sign-in are this app’s own', () => {
+  it('never reuses either Lift Log app’s Microsoft registration', () => {
+    // A separate registration keeps sign-ins apart. Empty means "not set up yet", which is allowed.
+    expect(['339a83cd-d197-4a3e-9474-12cf7a11b019', '103356ce-fabd-4cfe-9076-8753b3b9261e']).not.toContain(MS_CLIENT_ID.trim());
+  });
+  it('the sync code uses the names in appIdentity.ts, not hard-coded Lift Log ones', () => {
+    expect(configFile).toBe(mine.DATA_FILE_NAME);
+    for (const f of ['src/db.ts', 'src/config.ts', 'src/sync/auth.ts', 'src/sync/meta.ts', 'src/sync/merge.ts', 'src/sync/local.ts', 'src/sync/graph.ts', 'src/components/BackupSettings.tsx', 'src/components/FolderPicker.tsx']) {
+      expect(readFileSync(f, 'utf8'), f).not.toMatch(/'lift-log'|'erika-lift-log'|lift-log-data\.json|lift-log-backup|lift-return-tab|lift-sync-folder/);
+    }
   });
 });
