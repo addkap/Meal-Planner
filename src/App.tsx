@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppDataProvider } from './AppData';
 import { NavCtx, TABS, type Nav, type Route, type Tab } from './nav';
 import PlanPage from './pages/PlanPage';
@@ -44,12 +44,21 @@ export default function App() {
   }, []);
   const online = useOnline();
 
+  // Where she was scrolled on each page under the top one, so Back returns her to the same spot.
+  const scrollSpots = useRef<number[]>([]);
+  const restoreTo = useRef<number | null>(null);
   const nav = useMemo<Nav>(() => ({
     tab,
-    setTab: (t) => { setTabState(t); setStack([]); window.scrollTo(0, 0); },
-    open: (r) => { setStack((s) => [...s, r]); window.scrollTo(0, 0); },
-    back: () => setStack((s) => s.slice(0, -1)),
+    setTab: (t) => { scrollSpots.current = []; setTabState(t); setStack([]); window.scrollTo(0, 0); },
+    open: (r) => { scrollSpots.current.push(window.scrollY); setStack((s) => [...s, r]); window.scrollTo(0, 0); },
+    back: () => { restoreTo.current = scrollSpots.current.pop() ?? 0; setStack((s) => s.slice(0, -1)); },
   }), [tab]);
+  // After going back, the page underneath is shown again (it stayed open, hidden): put the scroll back.
+  useLayoutEffect(() => {
+    if (restoreTo.current === null) return;
+    window.scrollTo(0, restoreTo.current);
+    restoreTo.current = null;
+  }, [stack]);
 
   const top = stack[stack.length - 1];
 
@@ -62,31 +71,18 @@ export default function App() {
       {!online && <p className="offline" role="status">Offline: everything still saves on this phone.</p>}
       <main className="page">
         <AppDataProvider>
-          {top?.name === 'recipe' ? (
-            <RecipePage key={top.recipeId + (top.meal?.date ?? '') + (top.meal?.slot ?? '')} recipeId={top.recipeId} meal={top.meal} />
-          ) : top?.name === 'log' ? (
-            <LogFoodPage key={top.date + top.slot + (top.editId ?? '')} date={top.date} slot={top.slot} editId={top.editId} />
-          ) : top?.name === 'batches' ? (
-            <BatchesPage />
-          ) : top?.name === 'batch-new' ? (
-            <BatchNewPage />
-          ) : top?.name === 'batch-plan' ? (
-            <BatchPlanPage key={top.batchId + (top.weekStart ?? '')} batchId={top.batchId} weekStart={top.weekStart} />
-          ) : top?.name === 'settings' ? (
-            <SettingsPage />
-          ) : top?.name === 'weight' ? (
-            <WeightPage />
-          ) : top?.name === 'recipe-edit' ? (
-            <RecipeEditorPage key={top.id ?? 'new'} id={top.id} />
-          ) : (
-            <>
-              {tab === 'Plan' && <PlanPage />}
-              {tab === 'Groceries' && <GroceriesPage />}
-              {tab === 'Today' && <TodayPage />}
-              {tab === 'Recipes' && <RecipesPage />}
-              {tab === 'More' && <MorePage />}
-            </>
-          )}
+          {/* Pages opened on top stay open underneath (hidden) so Back finds them as she left them:
+              same scroll spot, same search, same filters. */}
+          <div hidden={stack.length > 0}>
+            {tab === 'Plan' && <PlanPage />}
+            {tab === 'Groceries' && <GroceriesPage />}
+            {tab === 'Today' && <TodayPage />}
+            {tab === 'Recipes' && <RecipesPage />}
+            {tab === 'More' && <MorePage />}
+          </div>
+          {stack.map((r, i) => (
+            <div key={`${i}:${routeKey(r)}`} hidden={i !== stack.length - 1}>{routePage(r)}</div>
+          ))}
         </AppDataProvider>
       </main>
       <nav className="tabbar" aria-label="Main">
@@ -98,4 +94,27 @@ export default function App() {
       </nav>
     </NavCtx.Provider>
   );
+}
+
+function routeKey(r: Route): string {
+  switch (r.name) {
+    case 'recipe': return `recipe:${r.recipeId}:${r.meal?.date ?? ''}:${r.meal?.slot ?? ''}`;
+    case 'log': return `log:${r.date}:${r.slot}:${r.editId ?? ''}`;
+    case 'batch-plan': return `batch-plan:${r.batchId}:${r.weekStart ?? ''}`;
+    case 'recipe-edit': return `recipe-edit:${r.id ?? 'new'}`;
+    default: return r.name;
+  }
+}
+
+function routePage(r: Route): ReactNode {
+  switch (r.name) {
+    case 'recipe': return <RecipePage recipeId={r.recipeId} meal={r.meal} />;
+    case 'log': return <LogFoodPage date={r.date} slot={r.slot} editId={r.editId} />;
+    case 'batches': return <BatchesPage />;
+    case 'batch-new': return <BatchNewPage />;
+    case 'batch-plan': return <BatchPlanPage batchId={r.batchId} weekStart={r.weekStart} />;
+    case 'settings': return <SettingsPage />;
+    case 'weight': return <WeightPage />;
+    case 'recipe-edit': return <RecipeEditorPage id={r.id} />;
+  }
 }
