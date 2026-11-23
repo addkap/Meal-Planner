@@ -15,7 +15,8 @@ export type Route =
   | { name: 'batches' }
   | { name: 'batch-new' }
   | { name: 'batch-plan'; batchId: string; weekStart?: string }
-  | { name: 'recipe-edit'; id?: string };
+  | { name: 'recipe-edit'; id?: string }
+  | { name: 'weight' };
 
 export interface Nav {
   tab: Tab;

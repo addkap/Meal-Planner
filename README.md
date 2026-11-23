@@ -2,7 +2,7 @@
 
 A weekly Mediterranean / Blue Zone meal planner, grocery list and nutrition tracker, built for one person to use on an iPhone. It is an installable web app (PWA), set up the same way as Lift Log: React + TypeScript + Vite, data saved on the phone first, a background copy in her OneDrive folder, and free hosting on GitHub Pages. There is no server and no account.
 
-> **Status: phase 6 of 8.** Planning, recipes, groceries, the Today tab with barcode scanning, batch cooking and her own recipes all work. The weight tracker (phase 7) and Settings and OneDrive sync (phase 8) are next.
+> **Status: phase 7 of 8.** Planning, recipes, groceries, the Today tab with barcode scanning, batch cooking, her own recipes and the weight tracker all work. Settings and OneDrive sync (phase 8) are next.
 
 | Phase | What | Status |
 |---|---|---|
@@ -12,7 +12,7 @@ A weekly Mediterranean / Blue Zone meal planner, grocery list and nutrition trac
 | 4 | Grocery lists by store | done |
 | 5 | Daily log, nutrition summary, barcode scanning | done |
 | 6 | Batch cooking and her own recipes | done |
-| 7 | Weight tracker | |
+| 7 | Weight tracker | done |
 | 8 | Settings, OneDrive sync, polish, install steps | |
 
 ---
@@ -263,6 +263,23 @@ Scanned and typed-in foods can also be used as ingredients in her own recipes (p
 - **My recipes** has its own filter. She can edit or delete each one.
 - **Deleting:** a deleted recipe is no longer listed or planned, but meals already planned or eaten keep their nutrition.
 - Units now include pounds (lb) for meat.
+
+### Weight tracker (phase 7, `src/lib/weight.ts`, More, then Weight)
+**Logging**
+- She logs a weigh-in with a date, weight and optional note, and can edit or delete any entry.
+- **lb or kg** toggle. Weights are stored in kg and shown in her unit with one decimal, like a scale.
+- If she logs two weigh-ins on the same day, the later one counts.
+
+**Summary**
+- The **7-day average** (the mean of every weigh-in in the 7 days ending that day), which smooths out day-to-day water-weight swings.
+- The change over the last 30 days and since her first weigh-in, in words ("3.0 lb down").
+- An optional **goal weight** with "x lb to go".
+
+**Chart** (Recharts)
+- Weigh-ins are sky-blue dots and the 7-day average is a blue line. There is a dashed goal line when she has a goal.
+- Ranges: 1 month, 3 months, 1 year, or all.
+- Tapping shows a tooltip.
+- The colors were checked with the dataviz palette validator: they pass the colorblind and normal-vision separation checks. The sky dots are faint on white, so there is a legend, and every weigh-in is also listed under the chart.
 
 ### Forms
 - **Never blocked silently:** number boxes accept decimals (1.4 mg of iron), and no form is held back by the browser's built-in checks without saying why. The app shows its own message instead.

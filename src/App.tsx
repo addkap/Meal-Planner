@@ -8,6 +8,7 @@ import GroceriesPage from './pages/GroceriesPage';
 import TodayPage from './pages/TodayPage';
 import LogFoodPage from './pages/LogFoodPage';
 import MorePage from './pages/MorePage';
+import WeightPage from './pages/WeightPage';
 import RecipeEditorPage from './pages/RecipeEditorPage';
 import { BatchesPage, BatchNewPage, BatchPlanPage } from './pages/BatchPages';
 
@@ -56,6 +57,8 @@ export default function App() {
             <BatchNewPage />
           ) : top?.name === 'batch-plan' ? (
             <BatchPlanPage key={top.batchId + (top.weekStart ?? '')} batchId={top.batchId} weekStart={top.weekStart} />
+          ) : top?.name === 'weight' ? (
+            <WeightPage />
           ) : top?.name === 'recipe-edit' ? (
             <RecipeEditorPage key={top.id ?? 'new'} id={top.id} />
           ) : (

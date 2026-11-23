@@ -6,9 +6,9 @@ export default function MorePage() {
   return (
     <>
       <h1>More</h1>
+      <button className="btn big" onClick={() => open({ name: 'weight' })}>Weight</button>
       <button className="btn big" onClick={() => open({ name: 'batches' })}>Your batches</button>
       <div className="card">
-        <p className="muted">Weight tracker: coming in phase 7.</p>
         <p className="muted">Settings (targets, stores, rules, sync): coming in phase 8.</p>
       </div>
     </>

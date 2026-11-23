@@ -224,3 +224,16 @@ textarea { width: 100%; padding: 10px 14px; border: 2px solid #9fb3c8; border-ra
 .picker { margin-top: 8px; }
 .check-line { display: flex; align-items: center; gap: 12px; min-height: 54px; font-weight: 600; }
 .check-line input { width: 28px; height: 28px; }
+
+/* ---- weight ---- */
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
+.stat-row > div { display: flex; flex-direction: column; }
+.stat { font-weight: 800; color: var(--navy); font-size: 19px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 0; font-size: 16px; color: var(--muted); }
+.swatch { display: inline-block; vertical-align: middle; margin-right: 6px; }
+.swatch.line { width: 22px; height: 3px; border-radius: 2px; }
+.swatch.dot { width: 10px; height: 10px; border-radius: 50%; }
+.swatch.goal { width: 22px; height: 0; border-top: 2px dashed var(--muted); }
+.chart { margin: 0 -6px; }
+.weigh-row { padding: 6px 0; border-bottom: 1px solid #e3eef3; }
+input[type="date"] { min-height: 54px; padding: 8px 12px; border: 2px solid #9fb3c8; border-radius: 12px; font-size: 19px; background: #fff; width: 100%; }
