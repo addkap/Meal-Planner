@@ -138,7 +138,10 @@ export interface DayPlan {
   date: string; // YYYY-MM-DD
   effort: Effort;
   snack: boolean;
-  people: number;
+  /** How many people each meal is cooked for (new plans). */
+  peopleBy?: Record<MealSlot, number>;
+  /** Plans made before per-meal counts: one number for the whole day. */
+  people?: number;
   kcalTarget: number;
   fiberTarget: number;
   meals: PlannedMeal[];
@@ -236,7 +239,10 @@ export interface Settings extends Rec {
   fiber: number;
   sex: Sex;
   age: AgeRange;
-  people: number;
+  /** Starting number of people for each meal in new plans. */
+  peopleBy: Record<MealSlot, number>;
+  /** Earlier versions: one number for every meal. No longer used. */
+  people?: number;
   weightUnit: 'lb' | 'kg';
   goalKg?: number;
   rules: DietRules;

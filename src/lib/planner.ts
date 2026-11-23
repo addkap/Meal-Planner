@@ -19,6 +19,10 @@
 import type { DayPlan, DietRules, Effort, MealSlot, PlannedMeal } from '../types';
 import { makeRng, randInt, weightedPick, type Rng } from './rng';
 import type { PoolRecipe, ProteinClass } from './pool';
+import { peopleFor, type PeopleBy } from './people';
+
+/** Copies whichever people count a day has (per meal, or the older single number). */
+const peopleOf = (d: { people?: number; peopleBy?: PeopleBy }) => (d.peopleBy ? { peopleBy: d.peopleBy } : d.people !== undefined ? { people: d.people } : {});
 
 // ---------------------------------------------------------------- settings
 
@@ -70,7 +74,10 @@ export interface DaySetup {
   date: string;
   effort: Effort;
   snack: boolean;
-  people: number;
+  /** How many people each meal is cooked for. */
+  peopleBy?: PeopleBy;
+  /** Older plans: one number for the whole day. */
+  people?: number;
   kcalTarget: number;
   fiberTarget: number;
 }
@@ -341,7 +348,7 @@ function fillDay(
     const p = best?.picks[i];
     const portion = best?.portions[i] ?? f?.portion ?? 1;
     if (f) return { ...f, portion: isFixed(f) ? f.portion : portion };
-    return { slot: s, recipeId: p?.id, portion, people: d.people };
+    return { slot: s, recipeId: p?.id, portion, people: peopleFor(d, s) };
   });
 
   // commit to the week
@@ -364,7 +371,7 @@ function fillDay(
     }
     if (best.fiber < d.fiberTarget) warnings.push(`About ${Math.round(best.fiber)} g of fiber, under the ${d.fiberTarget} g target.`);
   }
-  return { date: d.date, effort: d.effort, snack: d.snack, people: d.people, kcalTarget: d.kcalTarget, fiberTarget: d.fiberTarget, meals, warnings };
+  return { date: d.date, effort: d.effort, snack: d.snack, ...peopleOf(d), kcalTarget: d.kcalTarget, fiberTarget: d.fiberTarget, meals, warnings };
 }
 
 // ---------------------------------------------------------------- checking a week
@@ -482,7 +489,7 @@ export function dayKcalFiber(day: DayPlan, pool: PoolRecipe[], batches: BatchInf
 
 // ---------------------------------------------------------------- what the screens call
 
-const setupOf = (d: DayPlan): DaySetup => ({ date: d.date, effort: d.effort, snack: d.snack, people: d.people, kcalTarget: d.kcalTarget, fiberTarget: d.fiberTarget });
+const setupOf = (d: DayPlan): DaySetup => ({ date: d.date, effort: d.effort, snack: d.snack, ...peopleOf(d), kcalTarget: d.kcalTarget, fiberTarget: d.fiberTarget });
 const fixedOnly = (d: DayPlan) => d.meals.filter(isFixed);
 
 interface Ctx {
@@ -590,7 +597,7 @@ export function swapOptions(days: DayPlan[], date: string, slot: MealSlot, ctx: 
   for (const p of ctx.pool) {
     if (p.weight <= 0 || !p.meals.includes(slot) || p.id === cur?.recipeId) continue;
     const { portion, dayKcal } = bestPortion(day, slot, p, ctx);
-    const meal: PlannedMeal = { slot, recipeId: p.id, portion, people: cur?.people ?? day.people };
+    const meal: PlannedMeal = { slot, recipeId: p.id, portion, people: cur?.people ?? peopleFor(day, slot) };
     const trial = days.map((d) => (d.date !== date ? d : { ...d, meals: d.meals.map((m) => (m.slot === slot ? meal : m)) }));
     const added = checkWeek(trial, ctx).filter((v) => !before.has(keyOf(v)));
     out.push({ recipe: p, portion, dayKcal, fits: added.length === 0, breaks: added.map((v) => v.message) });

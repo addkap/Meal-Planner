@@ -32,7 +32,7 @@ export default function RecipePage({ recipeId, meal }: { recipeId: string; meal?
   const [confirmUndo, setConfirmUndo] = useState(false);
   const plan = useLiveQuery(async () => (meal ? (await db.plans.get(meal.weekStart)) ?? null : null), [meal?.weekStart]);
   const planned = meal && plan ? plan.days.find((d) => d.date === meal.date)?.meals.find((m) => m.slot === meal.slot) : undefined;
-  const [localPeople, setLocalPeople] = useState(settings.people);
+  const [localPeople, setLocalPeople] = useState(() => settings.peopleBy[recipes.get(recipeId)?.meal ?? 'dinner']);
 
   const recipe = recipes.get(recipeId);
   const p = poolById.get(recipeId);

@@ -432,3 +432,39 @@ describe('when batches leave too little room', () => {
     expect(res.warnings.some((w) => /because batches and kept meals fill most lunches and dinners/.test(w))).toBe(true);
   });
 });
+
+describe('people at each meal', () => {
+  const peopleBy = { breakfast: 1, lunch: 1, dinner: 4, snack: 1 };
+  const setups = (extra: Partial<DaySetup>): DaySetup[] =>
+    weekDates(WEEK).map((date) => ({ date, effort: 'medium', snack: true, kcalTarget: 1700, fiberTarget: 28, ...extra }));
+
+  it('each meal is sized for its own number of people', () => {
+    const res = generateWeek(setups({ peopleBy }), ctx, 77);
+    for (const d of res.days) {
+      expect(d.peopleBy).toEqual(peopleBy);
+      for (const m of d.meals) expect(m.people).toBe(peopleBy[m.slot]);
+    }
+  });
+
+  it('defaults to 1 for breakfast, lunch and snack and 4 for dinner', async () => {
+    const { DEFAULT_SETTINGS } = await import('./defaults');
+    expect(DEFAULT_SETTINGS.peopleBy).toEqual(peopleBy);
+  });
+
+  it('re-planning, swapping and re-balancing keep the per-meal numbers', () => {
+    const days = generateWeek(setups({ peopleBy }), ctx, 78).days;
+    const again = regenerateWeek(days, ctx, 79).days;
+    const swapped = swapMeal(again, days[2].date, 'dinner', ctx, 80).days;
+    const balanced = rebalanceWeek(swapped, ctx, 81).days;
+    for (const d of [...again, ...swapped, ...balanced]) for (const m of d.meals) expect(m.people).toBe(peopleBy[m.slot]);
+  });
+
+  it('plans made with one number for the whole day still work', () => {
+    const res = generateWeek(setups({ people: 3 }), ctx, 82);
+    for (const d of res.days) {
+      expect(d.people).toBe(3);
+      expect(d.peopleBy).toBeUndefined();
+      for (const m of d.meals) expect(m.people).toBe(3);
+    }
+  });
+});

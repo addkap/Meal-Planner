@@ -6,6 +6,7 @@
 import type { Batch, DayPlan, LogEntry, MealSlot, WeekPlan } from '../types';
 import type { PoolRecipe } from './pool';
 import { isFixed } from './planner';
+import { peopleFor } from './people';
 
 export interface BatchStatus {
   made: number;
@@ -100,7 +101,7 @@ export function placeBatch(days: DayPlan[], b: Batch, slots: SlotRef[]): DayPlan
     meals: d.meals.map((m) => {
       const k = `${d.date}|${m.slot}`;
       if (want.has(k)) return { slot: m.slot, recipeId: b.recipeId, batchId: b.id, portion: 1, people: 1 };
-      if (m.batchId === b.id) return { slot: m.slot, recipeId: undefined, portion: 1, people: d.people }; // taken out: free again
+      if (m.batchId === b.id) return { slot: m.slot, recipeId: undefined, portion: 1, people: peopleFor(d, m.slot) }; // taken out: free again
       return m;
     }),
   }));

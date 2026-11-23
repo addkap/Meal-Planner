@@ -17,6 +17,8 @@ import SwapMenu from '../components/SwapMenu';
 import { EffortBadge, kcalText, minutesText, Segmented, Stepper, Toggle } from '../components/ui';
 import type { CustomMeal, DayPlan, Effort, MealSlot, PlannedMeal, WeekPlan } from '../types';
 import type { SwapOption } from '../lib/planner';
+import { MEAL_LABEL, MEAL_ORDER } from '../lib/people';
+import type { PeopleBy } from '../lib/people';
 
 const SLOT_LABEL: Record<MealSlot, string> = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack' };
 const EFFORT_OPTIONS: { value: Effort; label: string }[] = [
@@ -67,6 +69,7 @@ function PlanSetup({ weekStart, existing, onDone, onCancel }: { weekStart: strin
   const { settings, pool, batchInfo } = useAppData();
   const [weekKcal, setWeekKcal] = useState(String(existing?.days[0]?.kcalTarget ?? settings.kcal));
   const [weekFiber, setWeekFiber] = useState(String(existing?.days[0]?.fiberTarget ?? settings.fiber));
+  const [peopleBy, setPeopleBy] = useState<PeopleBy>(() => existing?.days[0]?.peopleBy ?? settings.peopleBy);
   const [days, setDays] = useState<(DaySetup & { ownTargets: boolean })[]>(() =>
     weekDates(weekStart).map((date) => {
       const d = existing?.days.find((x) => x.date === date);
@@ -74,7 +77,6 @@ function PlanSetup({ weekStart, existing, onDone, onCancel }: { weekStart: strin
         date,
         effort: d?.effort ?? 'medium',
         snack: d?.snack ?? true,
-        people: d?.people ?? settings.people,
         kcalTarget: d?.kcalTarget ?? settings.kcal,
         fiberTarget: d?.fiberTarget ?? settings.fiber,
         ownTargets: !!d && (d.kcalTarget !== existing?.days[0]?.kcalTarget || d.fiberTarget !== existing?.days[0]?.fiberTarget),
@@ -100,7 +102,7 @@ function PlanSetup({ weekStart, existing, onDone, onCancel }: { weekStart: strin
     // Keep meals she locked and batch servings from the plan she already had.
     const fixed = days.map((d) => (existing?.days.find((x) => x.date === d.date)?.meals ?? []).filter(isFixed).filter((m) => m.slot !== 'snack' || d.snack));
     const seed = newSeed();
-    const res = generateWeek(days.map(({ ownTargets: _o, ...d }) => d), { pool, rules: settings.rules, batches: batchInfo }, seed, fixed);
+    const res = generateWeek(days.map(({ ownTargets: _o, ...d }) => ({ ...d, peopleBy })), { pool, rules: settings.rules, batches: batchInfo }, seed, fixed);
     void savePlan({ id: weekStart, weekStart, days: res.days, finalized: false, seed, warnings: res.warnings }).then(() => {
       setBusy(false);
       onDone();
@@ -126,16 +128,23 @@ function PlanSetup({ weekStart, existing, onDone, onCancel }: { weekStart: strin
         <p className="muted small">Filled in from Settings. You can change them for any single day below.</p>
       </div>
 
+      <div className="card">
+        <h2>People at each meal</h2>
+        {MEAL_ORDER.map((slot) => (
+          <div className="row-between" key={slot}>
+            <span>{MEAL_LABEL[slot]}</span>
+            <Stepper label={`people at ${slot}`} value={peopleBy[slot]} min={1} max={12} onChange={(n) => setPeopleBy((p) => ({ ...p, [slot]: n }))} unit={peopleBy[slot] === 1 ? 'person' : 'people'} />
+          </div>
+        ))}
+        <p className="muted small">Ingredients and the grocery list are sized for these. Any single meal can still be changed on its recipe page.</p>
+      </div>
+
       {days.map((d, i) => (
         <div className="card day-setup" key={d.date}>
           <h2>{dayName(d.date)} <span className="muted">{shortDate(d.date)}</span></h2>
           <Segmented label={`Cooking effort for ${dayName(d.date)}`} value={d.effort} options={EFFORT_OPTIONS} onChange={(effort) => setDay(i, { effort })} />
           <div className="row-between">
             <Toggle label="Snack" checked={d.snack} onChange={(snack) => setDay(i, { snack })} />
-          </div>
-          <div className="row-between">
-            <span>Cooking for</span>
-            <Stepper label="people" value={d.people} onChange={(people) => setDay(i, { people })} unit={d.people === 1 ? 'person' : 'people'} />
           </div>
           {openTargets === d.date ? (
             <div className="targets-edit">
@@ -266,7 +275,7 @@ function DayCard({ day, days, weekStart, onToggleLock, onSurprise, onPickRecipe,
         <h2>{dayName(day.date)} <span className="muted">{shortDate(day.date)}</span></h2>
         <EffortBadge effort={day.effort} />
       </div>
-      <p className="muted day-sub">{kcalText(kcal)} of {day.kcalTarget} · {Math.round(fiber)} g fiber of {day.fiberTarget} · for {day.people}{day.snack ? '' : ' · no snack'}</p>
+      <p className="muted day-sub">{kcalText(kcal)} of {day.kcalTarget} · {Math.round(fiber)} g fiber of {day.fiberTarget}{day.snack ? '' : ' · no snack'}</p>
       {(day.warnings ?? []).map((w) => <p key={w} className="warn-line">{w}</p>)}
       {day.meals.map((m) => {
         const rid = recipeIdOf(m);

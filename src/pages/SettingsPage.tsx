@@ -8,6 +8,7 @@ import { useNav } from '../nav';
 import { saveSettings, setFavorite, setFeedback } from '../store';
 import { DEFAULT_RULES } from '../lib/pool';
 import { AGE_RANGES } from '../lib/dri';
+import { MEAL_LABEL, MEAL_ORDER } from '../lib/people';
 import { BackBar, Segmented, Stepper } from '../components/ui';
 import OneDriveSettings from '../components/OneDriveSettings';
 import BackupSettings from '../components/BackupSettings';
@@ -52,8 +53,14 @@ export default function SettingsPage() {
 
       <section className="card">
         <h2>Cooking</h2>
-        <div className="row-between"><span>Usually cooking for</span><Stepper label="people" value={settings.people} min={1} max={12} onChange={(people) => void saveSettings({ people })} unit={settings.people === 1 ? 'person' : 'people'} /></div>
-        <p className="muted small">The starting number for new plans. Each day or meal can still be changed.</p>
+        <p>People at each meal</p>
+        {MEAL_ORDER.map((slot) => (
+          <div className="row-between" key={slot}>
+            <span>{MEAL_LABEL[slot]}</span>
+            <Stepper label={`people at ${slot}`} value={settings.peopleBy[slot]} min={1} max={12} onChange={(n) => void saveSettings({ peopleBy: { ...settings.peopleBy, [slot]: n } })} unit={settings.peopleBy[slot] === 1 ? 'person' : 'people'} />
+          </div>
+        ))}
+        <p className="muted small">The starting numbers for new plans. Each week, and any single meal, can still be changed.</p>
       </section>
 
       <section className="card">
